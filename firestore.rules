@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Security Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for User Document
+    function isValidUser(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 60 &&
+             data.email is string && data.email.size() <= 120 &&
+             data.rank is string && data.rank.size() <= 16 &&
+             data.level is number && data.level >= 1 &&
+             (!('xp' in data) || data.xp is number) &&
+             (!('gold' in data) || data.gold is number) &&
+             (!('essenceStones' in data) || data.essenceStones is number) &&
+             (!('statPoints' in data) || data.statPoints is number) &&
+             (!('hp' in data) || data.hp is number) &&
+             (!('maxHp' in data) || data.maxHp is number) &&
+             (!('mp' in data) || data.mp is number) &&
+             (!('maxMp' in data) || data.maxMp is number) &&
+             (!('combatPower' in data) || data.combatPower is number) &&
+             (!('streak' in data) || data.streak is number) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for Quest Document
+    function isValidQuest(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.userId is string && isValidId(data.userId) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 120 &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('xpReward' in data) || data.xpReward is number) &&
+             (!('goldReward' in data) || data.goldReward is number) &&
+             data.completed is bool &&
+             (!('streak' in data) || data.streak is number) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for Dungeon Document
+    function isValidDungeon(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.userId is string && isValidId(data.userId) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 120 &&
+             data.rank is string && data.rank.size() <= 16 &&
+             data.cleared is bool &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // Match Hunter User Entity
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Users collection cannot be arbitrarily scraped
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().id == userId &&
+                       isValidUser(incoming()) &&
+                       incoming().createdAt == request.time &&
+                       incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().id == existing().id &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUser(incoming()) &&
+                       incoming().updatedAt == request.time;
+
+      allow delete: if false; // Hunter accounts cannot be deleted directly via client
+
+      // Match Subcollection: Quests
+      match /quests/{questId} {
+        allow get: if isOwner(userId) && isValidId(questId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(questId) &&
+                         incoming().id == questId &&
+                         incoming().userId == userId &&
+                         isValidQuest(incoming()) &&
+                         incoming().createdAt == request.time &&
+                         incoming().updatedAt == request.time;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(questId) &&
+                         incoming().id == existing().id &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidQuest(incoming()) &&
+                         incoming().updatedAt == request.time;
+
+        allow delete: if isOwner(userId) && isValidId(questId);
+      }
+
+      // Match Subcollection: Dungeons
+      match /dungeons/{dungeonId} {
+        allow get: if isOwner(userId) && isValidId(dungeonId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(dungeonId) &&
+                         incoming().id == dungeonId &&
+                         incoming().userId == userId &&
+                         isValidDungeon(incoming()) &&
+                         incoming().createdAt == request.time &&
+                         incoming().updatedAt == request.time;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(dungeonId) &&
+                         incoming().id == existing().id &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidDungeon(incoming()) &&
+                         incoming().updatedAt == request.time;
+
+        allow delete: if isOwner(userId) && isValidId(dungeonId);
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "System: Shadow Leveling",
+  "description": "A gamified habit-tracking RPG interface inspired by Solo Leveling, featuring attribute progression, dungeon-style tasks, and equipment management.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

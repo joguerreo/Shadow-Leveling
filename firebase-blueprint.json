@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Hunter profile and progression state",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier matching Firebase Auth UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Hunter callsign or display name",
+          "maxLength": 60
+        },
+        "email": {
+          "type": "string",
+          "description": "Hunter email address",
+          "maxLength": 120
+        },
+        "rank": {
+          "type": "string",
+          "description": "Hunter rank classification",
+          "enum": ["E", "D", "C", "B", "A", "S", "National"],
+          "maxLength": 16
+        },
+        "level": {
+          "type": "number",
+          "description": "Current player level"
+        },
+        "xp": {
+          "type": "number",
+          "description": "Accumulated experience points"
+        },
+        "gold": {
+          "type": "number",
+          "description": "Current gold currency balance"
+        },
+        "essenceStones": {
+          "type": "number",
+          "description": "Rare essence stones balance"
+        },
+        "statPoints": {
+          "type": "number",
+          "description": "Unallocated attribute stat points"
+        },
+        "hp": {
+          "type": "number",
+          "description": "Current Health Points"
+        },
+        "maxHp": {
+          "type": "number",
+          "description": "Maximum Health Points"
+        },
+        "mp": {
+          "type": "number",
+          "description": "Current Mana Points"
+        },
+        "maxMp": {
+          "type": "number",
+          "description": "Maximum Mana Points"
+        },
+        "combatPower": {
+          "type": "number",
+          "description": "Evaluated combat power rating"
+        },
+        "streak": {
+          "type": "number",
+          "description": "Active daily quest streak"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp in ISO format"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated timestamp in ISO format"
+        }
+      },
+      "required": ["id", "name", "email", "rank", "level", "createdAt", "updatedAt"]
+    },
+    "Quest": {
+      "title": "Quest",
+      "description": "Individual habit, task, or daily objective",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the quest",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner hunter UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the quest",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "description": "Quest category",
+          "maxLength": 50
+        },
+        "xpReward": {
+          "type": "number",
+          "description": "Experience reward amount"
+        },
+        "goldReward": {
+          "type": "number",
+          "description": "Gold reward amount"
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Completion status flag"
+        },
+        "streak": {
+          "type": "number",
+          "description": "Consecutive completions streak"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "completed", "createdAt", "updatedAt"]
+    },
+    "Dungeon": {
+      "title": "Dungeon",
+      "description": "Deep focus dungeon or major project gate",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique dungeon identifier",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner hunter UID",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the dungeon or gate",
+          "maxLength": 120
+        },
+        "rank": {
+          "type": "string",
+          "description": "Difficulty rank classification",
+          "maxLength": 16
+        },
+        "cleared": {
+          "type": "boolean",
+          "description": "Dungeon conquest status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["id", "userId", "name", "rank", "cleared", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Master record for each hunter registered with the System"
+    },
+    "/users/{userId}/quests/{questId}": {
+      "schema": { "$ref": "Quest" },
+      "description": "Active and completed daily quests and habits belonging to the hunter"
+    },
+    "/users/{userId}/dungeons/{dungeonId}": {
+      "schema": { "$ref": "Dungeon" },
+      "description": "Conquered and in-progress gate dungeons for the hunter"
+    }
+  }
+}
