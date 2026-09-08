@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Player, Quest, Dungeon, ShadowExpedition, SystemLog, HunterSkill, HunterAchievement, WorldBoss } from '../types';
+import { Player, Quest, Dungeon, ShadowExpedition, SystemLog, HunterSkill, HunterAchievement, WorldBoss, HunterSaga } from '../types';
 import { exportBackupJSON, importBackupJSON } from '../utils/storage';
 import { sound } from '../utils/sound';
 import {
@@ -27,6 +27,7 @@ interface AnalyticsProps {
   skills: HunterSkill[];
   achievements: HunterAchievement[];
   bosses: WorldBoss[];
+  sagas?: HunterSaga[];
   logs: SystemLog[];
   onRestoreBackup: (data: {
     player: Player;
@@ -36,6 +37,7 @@ interface AnalyticsProps {
     skills: HunterSkill[];
     achievements: HunterAchievement[];
     bosses: WorldBoss[];
+    sagas?: HunterSaga[];
     logs: SystemLog[];
   }) => void;
   onResetSystem: () => void;
@@ -49,6 +51,7 @@ const Analytics: React.FC<AnalyticsProps> = ({
   skills,
   achievements,
   bosses,
+  sagas,
   logs,
   onRestoreBackup,
   onResetSystem,
@@ -71,7 +74,7 @@ const Analytics: React.FC<AnalyticsProps> = ({
 
   const handleExport = () => {
     sound.playBeep(700, 0.08);
-    exportBackupJSON(player, quests, dungeons, expeditions, skills, achievements, bosses, logs);
+    exportBackupJSON(player, quests, dungeons, expeditions, skills, achievements, bosses, logs, sagas);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -120,7 +120,7 @@ export async function syncHunterToFirestore(userId: string, player: Player): Pro
 
     const cp = calculateCombatPower(player);
 
-    const dataToSave = {
+    const dataToSave: any = {
       id: userId,
       name: player.name || auth.currentUser.displayName || 'Sung Jin-Woo',
       email: auth.currentUser.email || '',
@@ -134,6 +134,14 @@ export async function syncHunterToFirestore(userId: string, player: Player): Pro
       maxMp: Number(player.maxMp) || 100,
       combatPower: cp,
       streak: Number(player.streakDays) || 0,
+      attributes: player.attributes || {},
+      inventory: player.inventory || [],
+      equipped: player.equipped || {},
+      titlesUnlocked: player.titlesUnlocked || ['The Weakest Hunter'],
+      hunterClass: player.hunterClass || 'Monarca',
+      soundEnabled: player.soundEnabled ?? true,
+      shadowArmy: player.shadowArmy || [],
+      activityHistory: player.activityHistory || [],
       updatedAt: serverTimestamp(),
     };
 
@@ -238,6 +246,14 @@ export async function loadUserDataFromFirestore(userId: string): Promise<Partial
       mp: data.mp,
       maxMp: data.maxMp,
       streakDays: data.streak,
+      attributes: data.attributes || undefined,
+      inventory: data.inventory || undefined,
+      equipped: data.equipped || undefined,
+      titlesUnlocked: data.titlesUnlocked || undefined,
+      hunterClass: data.hunterClass || undefined,
+      soundEnabled: data.soundEnabled ?? true,
+      shadowArmy: data.shadowArmy || undefined,
+      activityHistory: data.activityHistory || undefined,
     };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, userPath);

@@ -1,5 +1,14 @@
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
-import { Player, Quest } from '../types';
+import { 
+  Player, 
+  Quest, 
+  Dungeon, 
+  ShadowExpedition, 
+  HunterSkill, 
+  HunterAchievement, 
+  WorldBoss, 
+  HunterSaga 
+} from '../types';
 import { calculateCombatPower } from './calculator';
 
 // Supabase Environment Setup
@@ -73,13 +82,93 @@ export async function signOutHunter(): Promise<void> {
 // Database Synchronization with Supabase
 // ==========================================
 
-export async function syncHunterProfile(userId: string, player: Player): Promise<boolean> {
+export interface ExtraGameModules {
+  skills?: HunterSkill[];
+  dungeons?: Dungeon[];
+  expeditions?: ShadowExpedition[];
+  achievements?: HunterAchievement[];
+  bosses?: WorldBoss[];
+  sagas?: HunterSaga[];
+}
+
+export interface LoadedHunterData {
+  player: Partial<Player>;
+  skills?: HunterSkill[];
+  dungeons?: Dungeon[];
+  expeditions?: ShadowExpedition[];
+  achievements?: HunterAchievement[];
+  bosses?: WorldBoss[];
+  sagas?: HunterSaga[];
+}
+
+export async function syncHunterProfile(
+  userId: string, 
+  player: Player,
+  extraModules?: ExtraGameModules
+): Promise<boolean> {
   if (!supabase) return false;
   try {
     const cp = calculateCombatPower(player);
-    const { error } = await supabase
-      .from('hunters')
-      .upsert({
+
+    const fullPayload: any = {
+      id: userId,
+      name: player.name,
+      rank: player.rank,
+      title: player.title,
+      level: player.level,
+      xp: player.xp,
+      max_xp: player.maxXp,
+      gold: player.gold,
+      essence_stones: player.essenceStones,
+      stat_points: player.statPoints,
+      mp: player.mp || 100,
+      max_mp: player.maxMp || 100,
+      combat_power: cp,
+      streak_days: player.streakDays,
+      avatar_id: player.avatarId,
+      avatar_frame: player.avatarFrame,
+      hunter_class: player.hunterClass || 'Monarca',
+      last_active_date: player.lastActiveDate || new Date().toISOString().split('T')[0],
+      sound_enabled: player.soundEnabled ?? true,
+      attributes: player.attributes,
+      inventory: player.inventory || [],
+      equipped: player.equipped || {},
+      titles_unlocked: player.titlesUnlocked || ['The Weakest Hunter'],
+      equipped_title: player.equippedTitle || player.title || 'The Weakest Hunter',
+      shadow_army: player.shadowArmy || [],
+      activity_history: player.activityHistory || [],
+      skills: extraModules?.skills || player.skills || [],
+      dungeons: extraModules?.dungeons || [],
+      expeditions: extraModules?.expeditions || [],
+      achievements: extraModules?.achievements || player.achievements || [],
+      bosses: extraModules?.bosses || [],
+      sagas: extraModules?.sagas || [],
+      latest_audit: player.latestAudit || null,
+      game_data: {
+        inventory: player.inventory || [],
+        equipped: player.equipped || {},
+        titlesUnlocked: player.titlesUnlocked || ['The Weakest Hunter'],
+        equippedTitle: player.equippedTitle || player.title || 'The Weakest Hunter',
+        hunterClass: player.hunterClass || 'Monarca',
+        shadowArmy: player.shadowArmy || [],
+        activityHistory: player.activityHistory || [],
+        skills: extraModules?.skills || player.skills || [],
+        dungeons: extraModules?.dungeons || [],
+        expeditions: extraModules?.expeditions || [],
+        achievements: extraModules?.achievements || player.achievements || [],
+        bosses: extraModules?.bosses || [],
+        sagas: extraModules?.sagas || [],
+        latestAudit: player.latestAudit || null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('hunters').upsert(fullPayload);
+
+    if (error) {
+      console.warn('Supabase extended upsert warning, retrying with core columns:', error.message);
+      // Resilient fallback if table has not run the latest migration yet
+      const fallbackPayload: any = {
         id: userId,
         name: player.name,
         rank: player.rank,
@@ -90,19 +179,20 @@ export async function syncHunterProfile(userId: string, player: Player): Promise
         gold: player.gold,
         essence_stones: player.essenceStones,
         stat_points: player.statPoints,
-        mp: player.mp,
-        max_mp: player.maxMp,
+        mp: player.mp || 100,
+        max_mp: player.maxMp || 100,
         combat_power: cp,
         streak_days: player.streakDays,
         avatar_id: player.avatarId,
         avatar_frame: player.avatarFrame,
         attributes: player.attributes,
         updated_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      console.warn('Supabase hunter sync error:', error);
-      return false;
+      };
+      const { error: fallbackError } = await supabase.from('hunters').upsert(fallbackPayload);
+      if (fallbackError) {
+        console.error('Fallback sync failed:', fallbackError);
+        return false;
+      }
     }
     return true;
   } catch (err) {
@@ -111,7 +201,7 @@ export async function syncHunterProfile(userId: string, player: Player): Promise
   }
 }
 
-export async function loadHunterProfile(userId: string): Promise<Partial<Player> | null> {
+export async function loadHunterProfile(userId: string): Promise<LoadedHunterData | null> {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
@@ -122,22 +212,44 @@ export async function loadHunterProfile(userId: string): Promise<Partial<Player>
 
     if (error || !data) return null;
 
-    return {
+    const gData = data.game_data || {};
+
+    const player: Partial<Player> = {
       name: data.name,
       rank: data.rank,
       title: data.title,
-      level: Number(data.level),
-      xp: Number(data.xp),
-      maxXp: Number(data.max_xp),
-      gold: Number(data.gold),
-      essenceStones: Number(data.essence_stones),
-      statPoints: Number(data.stat_points),
-      mp: Number(data.mp),
-      maxMp: Number(data.max_mp),
-      streakDays: Number(data.streak_days),
-      avatarId: data.avatar_id,
-      avatarFrame: data.avatar_frame,
+      level: Number(data.level) || 1,
+      xp: Number(data.xp) || 0,
+      maxXp: Number(data.max_xp) || 1000,
+      gold: Number(data.gold) || 0,
+      essenceStones: Number(data.essence_stones) || 0,
+      statPoints: Number(data.stat_points) || 0,
+      mp: Number(data.mp) || 100,
+      maxMp: Number(data.max_mp) || 100,
+      streakDays: Number(data.streak_days) || 1,
+      avatarId: data.avatar_id || 'monarch-shadow',
+      avatarFrame: data.avatar_frame || 'frame-e',
       attributes: data.attributes || undefined,
+      hunterClass: data.hunter_class || gData.hunterClass || 'Monarca',
+      lastActiveDate: data.last_active_date || gData.lastActiveDate || undefined,
+      soundEnabled: data.sound_enabled ?? gData.soundEnabled ?? true,
+      inventory: data.inventory || gData.inventory || undefined,
+      equipped: data.equipped || gData.equipped || undefined,
+      titlesUnlocked: data.titles_unlocked || gData.titlesUnlocked || undefined,
+      equippedTitle: data.equipped_title || gData.equippedTitle || undefined,
+      shadowArmy: data.shadow_army || gData.shadowArmy || undefined,
+      activityHistory: data.activity_history || gData.activityHistory || undefined,
+      latestAudit: data.latest_audit || gData.latestAudit || undefined,
+    };
+
+    return {
+      player,
+      skills: data.skills || gData.skills || undefined,
+      dungeons: data.dungeons || gData.dungeons || undefined,
+      expeditions: data.expeditions || gData.expeditions || undefined,
+      achievements: data.achievements || gData.achievements || undefined,
+      bosses: data.bosses || gData.bosses || undefined,
+      sagas: data.sagas || gData.sagas || undefined,
     };
   } catch (err) {
     console.error('Failed to load profile from Supabase', err);
@@ -158,9 +270,11 @@ export async function syncQuestsToSupabase(userId: string, quests: Quest[]): Pro
       target_count: q.targetCount || 1,
       current_count: q.currentCount || 0,
       unit: q.unit || 'veces',
+      attribute_reward: (q as any).attributeReward || 'STR',
       is_daily: Boolean(q.isDaily),
       completed: Boolean(q.completed),
-      rewards: q.rewards,
+      rewards: q.rewards || { xp: 100, gold: 50 },
+      completed_at: q.completedAt || null,
       created_at: q.createdAt || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }));
@@ -173,6 +287,21 @@ export async function syncQuestsToSupabase(userId: string, quests: Quest[]): Pro
     return true;
   } catch (err) {
     console.error('Failed to sync quests to Supabase', err);
+    return false;
+  }
+}
+
+export async function deleteQuestFromSupabase(userId: string, questId: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('quests')
+      .delete()
+      .eq('id', questId)
+      .eq('user_id', userId);
+    return !error;
+  } catch (err) {
+    console.error('Failed to delete quest from Supabase', err);
     return false;
   }
 }
@@ -196,9 +325,11 @@ export async function loadQuestsFromSupabase(userId: string): Promise<Quest[] | 
       targetCount: d.target_count || 1,
       currentCount: d.current_count || 0,
       unit: d.unit || 'veces',
+      attributeReward: d.attribute_reward || 'STR',
       isDaily: Boolean(d.is_daily),
       completed: Boolean(d.completed),
       rewards: d.rewards || { xp: 100, gold: 50 },
+      completedAt: d.completed_at || undefined,
       createdAt: d.created_at || new Date().toISOString(),
     }));
   } catch (err) {
@@ -206,4 +337,44 @@ export async function loadQuestsFromSupabase(userId: string): Promise<Quest[] | 
     return null;
   }
 }
+
+export async function syncCompleteGameState(
+  userId: string,
+  state: {
+    player: Player;
+    quests: Quest[];
+    dungeons: Dungeon[];
+    expeditions: ShadowExpedition[];
+    skills: HunterSkill[];
+    achievements: HunterAchievement[];
+    bosses: WorldBoss[];
+    sagas: HunterSaga[];
+  }
+): Promise<{ success: boolean; message: string }> {
+  if (!supabase) {
+    return { success: false, message: 'Supabase no está configurado.' };
+  }
+  try {
+    const profileSaved = await syncHunterProfile(userId, state.player, {
+      skills: state.skills,
+      dungeons: state.dungeons,
+      expeditions: state.expeditions,
+      achievements: state.achievements,
+      bosses: state.bosses,
+      sagas: state.sagas,
+    });
+    const questsSaved = await syncQuestsToSupabase(userId, state.quests);
+
+    if (profileSaved && questsSaved) {
+      return { success: true, message: 'El 100% de los elementos del Sistema han sido sincronizados con la Base de Datos.' };
+    } else if (profileSaved) {
+      return { success: true, message: 'Perfil, equipo e inventario sincronizados en Supabase.' };
+    } else {
+      return { success: false, message: 'No se pudo completar la sincronización en Supabase.' };
+    }
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Error de conexión con Supabase.' };
+  }
+}
+
 

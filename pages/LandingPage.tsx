@@ -5,9 +5,11 @@ import { AVATAR_CATALOG } from '../components/avatars/avatarCatalog';
 
 interface LandingPageProps {
   onAwaken: (hunterName: string, avatarId?: string) => void;
+  onOpenAuth?: () => void;
+  isSupabaseConfigured?: boolean;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onAwaken }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupabaseConfigured = true }) => {
   const [name, setName] = useState('Sung Jin-Woo');
   const [selectedAvatarId, setSelectedAvatarId] = useState('monarch-shadow');
   const [clicked, setClicked] = useState(false);
@@ -107,16 +109,30 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAwaken }) => {
           />
         </div>
 
-        {/* Awaken CTA */}
-        <div className="pt-2">
+        {/* Awaken & Supabase CTA */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
           <button 
             onClick={handleStart}
-            className="group relative flex min-w-[280px] cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-18 px-12 bg-gradient-to-r from-primary to-accent text-white gap-3 transition-all hover:scale-105 active:scale-95 system-glow shadow-2xl shadow-primary/30"
+            className="group relative flex-1 w-full min-w-[240px] cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-16 px-8 bg-gradient-to-r from-primary to-accent text-white gap-3 transition-all hover:scale-105 active:scale-95 system-glow shadow-2xl shadow-primary/30"
           >
-            <span className="material-symbols-outlined text-[26px]">auto_awesome</span>
-            <span className="text-lg font-black tracking-[0.25em] uppercase font-mono">Despertar</span>
+            <span className="material-symbols-outlined text-[24px]">auto_awesome</span>
+            <span className="text-base font-black tracking-[0.2em] uppercase font-mono">Despertar</span>
             <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
+
+          {onOpenAuth && (
+            <button
+              onClick={() => {
+                sound.playBeep(580, 0.04);
+                onOpenAuth();
+              }}
+              className="flex items-center justify-center gap-2 h-16 px-6 bg-[#121624] hover:bg-[#181d30] border border-primary/40 hover:border-primary rounded-2xl text-xs font-mono font-bold tracking-wider uppercase text-slate-200 hover:text-white transition-all shadow-lg shadow-black/50 w-full sm:w-auto"
+              title="Iniciar sesión con tu cuenta de Supabase"
+            >
+              <span className="material-symbols-outlined text-primary text-xl">login</span>
+              <span>Iniciar Sesión</span>
+            </button>
+          )}
         </div>
 
         {/* Neural connection indicator */}

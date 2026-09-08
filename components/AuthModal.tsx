@@ -6,9 +6,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (user: any) => void;
+  allowClose?: boolean;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, allowClose = true }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -64,15 +65,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
 
         {/* Close button */}
-        <button
-          onClick={() => {
-            sound.playBeep(420, 0.04);
-            onClose();
-          }}
-          className="absolute top-4 right-4 size-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-        >
-          <span className="material-symbols-outlined text-sm">close</span>
-        </button>
+        {allowClose && (
+          <button
+            onClick={() => {
+              sound.playBeep(420, 0.04);
+              onClose();
+            }}
+            className="absolute top-4 right-4 size-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        )}
 
         {/* Header */}
         <div className="text-center mb-6">

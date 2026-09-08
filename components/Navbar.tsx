@@ -15,6 +15,7 @@ interface NavbarProps {
   currentUser?: { displayName?: string | null; email?: string | null; id?: string } | null;
   isSyncing?: boolean;
   onLogout?: () => void;
+  onManualSync?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -28,6 +29,7 @@ const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   isSyncing,
   onLogout,
+  onManualSync,
 }) => {
   const combatPower = calculateCombatPower(player);
 
@@ -194,19 +196,26 @@ const Navbar: React.FC<NavbarProps> = ({
         {/* Supabase Cloud Sync / Auth Trigger */}
         {currentUser ? (
           <div
-            className="flex items-center gap-1 px-2 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs"
-            title={`Conectado a Supabase: ${currentUser.email}`}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs"
+            title={`Conectado a la Base de Datos (${currentUser.email}). Haz clic en el icono para forzar sincronización total.`}
           >
-            <span className={`material-symbols-outlined text-sm text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`}>
-              {isSyncing ? 'sync' : 'cloud_done'}
-            </span>
-            <span className="text-[10px] font-mono text-emerald-300 font-bold hidden md:inline">
-              SUPABASE
-            </span>
+            <button
+              onClick={onManualSync}
+              disabled={isSyncing}
+              className="flex items-center gap-1 hover:text-emerald-200 transition-colors"
+              title="Sincronizar el 100% de datos con la Base de Datos ahora"
+            >
+              <span className={`material-symbols-outlined text-sm text-emerald-400 ${isSyncing ? 'animate-spin' : 'hover:scale-110'}`}>
+                {isSyncing ? 'sync' : 'cloud_done'}
+              </span>
+              <span className="text-[10px] font-mono text-emerald-300 font-bold hidden sm:inline">
+                {isSyncing ? 'GUARDANDO...' : 'BDD (100%)'}
+              </span>
+            </button>
             {onLogout && (
               <button
                 onClick={onLogout}
-                className="ml-1 text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
+                className="ml-1 pl-1 border-l border-emerald-500/30 text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
                 title="Cerrar sesión"
               >
                 <span className="material-symbols-outlined text-xs">logout</span>

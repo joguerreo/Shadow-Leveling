@@ -45,6 +45,20 @@ service cloud.firestore {
              (!('maxMp' in data) || data.maxMp is number) &&
              (!('combatPower' in data) || data.combatPower is number) &&
              (!('streak' in data) || data.streak is number) &&
+             (!('inventory' in data) || data.inventory is list) &&
+             (!('equipped' in data) || data.equipped is map) &&
+             (!('attributes' in data) || data.attributes is map) &&
+             (!('titlesUnlocked' in data) || data.titlesUnlocked is list) &&
+             (!('hunterClass' in data) || (data.hunterClass is string && data.hunterClass.size() <= 60)) &&
+             (!('soundEnabled' in data) || data.soundEnabled is bool) &&
+             (!('skills' in data) || data.skills is list) &&
+             (!('shadowArmy' in data) || data.shadowArmy is list) &&
+             (!('expeditions' in data) || data.expeditions is list) &&
+             (!('achievements' in data) || data.achievements is list) &&
+             (!('bosses' in data) || data.bosses is list) &&
+             (!('sagas' in data) || data.sagas is list) &&
+             (!('activityHistory' in data) || data.activityHistory is list) &&
+             (!('gameData' in data) || data.gameData is map) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
     }

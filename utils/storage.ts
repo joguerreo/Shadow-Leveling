@@ -173,7 +173,8 @@ export function exportBackupJSON(
   skills: HunterSkill[],
   achievements: HunterAchievement[],
   bosses: WorldBoss[],
-  logs: SystemLog[]
+  logs: SystemLog[],
+  sagas?: HunterSaga[]
 ) {
   const backupData = {
     version: '2.5',
@@ -185,6 +186,7 @@ export function exportBackupJSON(
     skills,
     achievements,
     bosses,
+    sagas: sagas || [],
     logs,
   };
   const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -206,6 +208,7 @@ export function importBackupJSON(
     skills: HunterSkill[];
     achievements: HunterAchievement[];
     bosses: WorldBoss[];
+    sagas?: HunterSaga[];
     logs: SystemLog[];
   }) => void,
   onError: (err: string) => void
@@ -222,6 +225,7 @@ export function importBackupJSON(
     if (parsed.skills) saveStoredSkills(parsed.skills);
     if (parsed.achievements) saveStoredAchievements(parsed.achievements);
     if (parsed.bosses) saveStoredWorldBosses(parsed.bosses);
+    if (parsed.sagas) saveStoredSagas(parsed.sagas);
     if (parsed.logs) saveSystemLogs(parsed.logs);
     saveIsAwakened(true);
 
@@ -233,6 +237,7 @@ export function importBackupJSON(
       skills: parsed.skills || INITIAL_SKILLS,
       achievements: parsed.achievements || INITIAL_ACHIEVEMENTS,
       bosses: parsed.bosses || INITIAL_WORLD_BOSSES,
+      sagas: parsed.sagas || undefined,
       logs: parsed.logs || [],
     });
   } catch (e: any) {

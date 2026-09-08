@@ -28,8 +28,11 @@ import {
   signOutHunter, 
   syncHunterProfile, 
   syncQuestsToSupabase, 
+  deleteQuestFromSupabase,
   loadHunterProfile, 
-  loadQuestsFromSupabase 
+  loadQuestsFromSupabase,
+  syncCompleteGameState,
+  isSupabaseConfigured
 } from './utils/supabase';
 
 import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport } from './types';
@@ -104,21 +107,57 @@ const App: React.FC = () => {
       if (user) {
         setIsSyncing(true);
         try {
-          const cloudProfile = await loadHunterProfile(user.id);
+          const cloudData = await loadHunterProfile(user.id);
           const cloudQuests = await loadQuestsFromSupabase(user.id);
 
-          if (cloudProfile) {
+          if (cloudData && cloudData.player && Object.keys(cloudData.player).length > 0) {
             setPlayer((prev) => {
-              const merged = { ...prev, ...cloudProfile };
+              const merged = { ...prev, ...cloudData.player };
               saveStoredPlayer(merged);
               return merged;
             });
-            addLog(`Progreso recuperado de Supabase para ${user.email}.`, 'system');
+
+            if (cloudData.skills && cloudData.skills.length > 0) {
+              setSkills(cloudData.skills);
+              saveStoredSkills(cloudData.skills);
+            }
+            if (cloudData.dungeons && cloudData.dungeons.length > 0) {
+              setDungeons(cloudData.dungeons);
+              saveStoredDungeons(cloudData.dungeons);
+            }
+            if (cloudData.expeditions && cloudData.expeditions.length > 0) {
+              setExpeditions(cloudData.expeditions);
+              saveStoredExpeditions(cloudData.expeditions);
+            }
+            if (cloudData.achievements && cloudData.achievements.length > 0) {
+              setAchievements(cloudData.achievements);
+              saveStoredAchievements(cloudData.achievements);
+            }
+            if (cloudData.bosses && cloudData.bosses.length > 0) {
+              setBosses(cloudData.bosses);
+              saveStoredWorldBosses(cloudData.bosses);
+            }
+            if (cloudData.sagas && cloudData.sagas.length > 0) {
+              setSagas(cloudData.sagas);
+              saveStoredSagas(cloudData.sagas);
+            }
+
+            setAwakened(true);
+            saveIsAwakened(true);
+            addLog(`Progreso total (100%) recuperado de la base de datos para ${user.email}.`, 'system');
           } else {
-            // First time this user logs in: sync local state to Supabase
-            await syncHunterProfile(user.id, player);
-            await syncQuestsToSupabase(user.id, quests);
-            addLog('Perfil inicial registrado en la nube de Supabase.', 'system');
+            // First time this user logs in: sync local state to Supabase completely
+            await syncCompleteGameState(user.id, {
+              player,
+              quests,
+              dungeons,
+              expeditions,
+              skills,
+              achievements,
+              bosses,
+              sagas,
+            });
+            addLog('Perfil y todos los elementos registrados en la nube de Supabase.', 'system');
           }
 
           if (cloudQuests && cloudQuests.length > 0) {
@@ -136,15 +175,69 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Auto-sync changes to Supabase when logged in
+  // Auto-sync full game state changes to Supabase when logged in
   useEffect(() => {
     if (currentUser) {
-      const timer = setTimeout(() => {
-        syncHunterProfile(currentUser.id, player).catch(() => {});
-      }, 2000);
+      const timer = setTimeout(async () => {
+        setIsSyncing(true);
+        try {
+          await syncHunterProfile(currentUser.id, player, {
+            skills,
+            dungeons,
+            expeditions,
+            achievements,
+            bosses,
+            sagas,
+          });
+          await syncQuestsToSupabase(currentUser.id, quests);
+        } catch (e) {
+          console.warn('Auto-sync error:', e);
+        } finally {
+          setIsSyncing(false);
+        }
+      }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [player, currentUser]);
+  }, [player, quests, skills, dungeons, expeditions, achievements, bosses, sagas, currentUser]);
+
+  // Manual Full Sync Handler
+  const handleManualSync = async () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setIsSyncing(true);
+    sound.playBeep(700, 0.08);
+    try {
+      const res = await syncCompleteGameState(currentUser.id, {
+        player,
+        quests,
+        dungeons,
+        expeditions,
+        skills,
+        achievements,
+        bosses,
+        sagas,
+      });
+      if (res.success) {
+        sound.playLevelUp();
+        addLog(res.message, 'system');
+        setSystemModal({
+          isOpen: true,
+          title: '¡SINCRONIZACIÓN EXITOSA!',
+          subtitle: 'El 100% de tus elementos (Perfil, Atributos, Inventario, Equipamiento, Habilidades, Mazmorras, Sombras, Logros y Sagas) han sido asegurados en la Base de Datos.',
+          type: 'info',
+          onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+        });
+      } else {
+        addLog(res.message, 'system');
+      }
+    } catch (e: any) {
+      addLog(`Error al sincronizar: ${e.message}`, 'system');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Initial load of awakening, tour check & daily check
   useEffect(() => {
@@ -380,6 +473,9 @@ const App: React.FC = () => {
     const updated = quests.filter((q) => q.id !== id);
     setQuests(updated);
     saveStoredQuests(updated);
+    if (currentUser) {
+      deleteQuestFromSupabase(currentUser.id, id).catch(() => {});
+    }
     addLog(`Misión eliminada del protocolo de cazador.`, 'quest');
   };
 
@@ -1197,6 +1293,7 @@ const App: React.FC = () => {
     skills: HunterSkill[];
     achievements: HunterAchievement[];
     bosses: WorldBoss[];
+    sagas?: HunterSaga[];
     logs: SystemLog[];
   }) => {
     setPlayer(data.player);
@@ -1206,6 +1303,7 @@ const App: React.FC = () => {
     if (data.skills) setSkills(data.skills);
     if (data.achievements) setAchievements(data.achievements);
     if (data.bosses) setBosses(data.bosses);
+    if (data.sagas) setSagas(data.sagas);
     setLogs(data.logs);
   };
 
@@ -1224,7 +1322,26 @@ const App: React.FC = () => {
   };
 
   if (!awakened) {
-    return <LandingPage onAwaken={handleAwaken} />;
+    return (
+      <>
+        <LandingPage 
+          onAwaken={handleAwaken} 
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          isSupabaseConfigured={isSupabaseConfigured}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setIsAuthModalOpen(false);
+            setAwakened(true);
+            saveIsAwakened(true);
+            addLog(`Bienvenido, Cazador ${user.email}. Progreso sincronizado con Supabase.`, 'system');
+          }}
+        />
+      </>
+    );
   }
 
   return (
@@ -1240,6 +1357,7 @@ const App: React.FC = () => {
         onStartTour={() => setIsTourModalOpen(true)}
         currentUser={currentUser}
         isSyncing={isSyncing}
+        onManualSync={handleManualSync}
         onLogout={async () => {
           sound.playBeep(420, 0.05);
           await signOutHunter();
@@ -1341,6 +1459,7 @@ const App: React.FC = () => {
               skills={skills}
               achievements={achievements}
               bosses={bosses}
+              sagas={sagas}
               logs={logs}
               onRestoreBackup={handleRestoreBackup}
               onResetSystem={handleResetSystem}

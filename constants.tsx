@@ -61,72 +61,43 @@ export const INITIAL_ITEMS: Item[] = [
 ];
 
 export const INITIAL_PLAYER: Player = {
-  name: "Sung Jin-Woo",
-  title: "The Aspiring Shadow",
-  level: 18,
-  xp: 750,
-  maxXp: 1200,
-  mp: 450,
-  maxMp: 450,
-  rank: Rank.C,
-  gold: 8450,
-  essenceStones: 140,
-  statPoints: 3,
-  streakDays: 4,
+  name: "Cazador Despertado",
+  title: "The Weakest Hunter",
+  level: 1,
+  xp: 0,
+  maxXp: 1000,
+  mp: 100,
+  maxMp: 100,
+  rank: Rank.E,
+  gold: 0,
+  essenceStones: 0,
+  statPoints: 0,
+  streakDays: 0,
   lastActiveDate: new Date().toISOString().split('T')[0],
   soundEnabled: true,
   attributes: {
-    str: { name: 'Fuerza', code: 'STR', value: 24, icon: 'fitness_center', color: 'text-red-500', bonusText: '+4.8% Potencia física' },
-    int: { name: 'Inteligencia', code: 'INT', value: 20, icon: 'psychology', color: 'text-blue-400', bonusText: '+4.0% Capacidad cognitiva' },
-    vit: { name: 'Vitalidad', code: 'VIT', value: 22, icon: 'favorite', color: 'text-emerald-500', bonusText: '+6.6% Resistencia y energía' },
-    agi: { name: 'Agilidad', code: 'AGI', value: 18, icon: 'bolt', color: 'text-yellow-500', bonusText: '+3.6% Velocidad de ejecución' },
-    wis: { name: 'Sabiduría', code: 'WIS', value: 15, icon: 'auto_awesome', color: 'text-purple-400', bonusText: '+3.0% Claridad mental' },
-    cha: { name: 'Carisma', code: 'CHA', value: 12, icon: 'stars', color: 'text-pink-400', bonusText: '+2.4% Presencia e influencia' },
+    str: { name: 'Fuerza', code: 'STR', value: 10, icon: 'fitness_center', color: 'text-red-500', bonusText: '+2.0% Potencia física' },
+    int: { name: 'Inteligencia', code: 'INT', value: 10, icon: 'psychology', color: 'text-blue-400', bonusText: '+2.0% Capacidad cognitiva' },
+    vit: { name: 'Vitalidad', code: 'VIT', value: 10, icon: 'favorite', color: 'text-emerald-500', bonusText: '+3.0% Resistencia y energía' },
+    agi: { name: 'Agilidad', code: 'AGI', value: 10, icon: 'bolt', color: 'text-yellow-500', bonusText: '+2.0% Velocidad de ejecución' },
+    wis: { name: 'Sabiduría', code: 'WIS', value: 10, icon: 'auto_awesome', color: 'text-purple-400', bonusText: '+2.0% Claridad mental' },
+    cha: { name: 'Carisma', code: 'CHA', value: 10, icon: 'stars', color: 'text-pink-400', bonusText: '+2.0% Presencia e influencia' },
   },
   equipped: {
-    head: INITIAL_ITEMS[0],
+    head: null,
     chest: null,
     pants: null,
-    feet: INITIAL_ITEMS[3],
+    feet: null,
     gloves: null,
-    weapon: INITIAL_ITEMS[1],
+    weapon: null,
     accessory: null,
   },
-  inventory: [
-    INITIAL_ITEMS[2],
-    INITIAL_ITEMS[4],
-    {
-      id: 'cons_1',
-      name: 'Elixir of System Mana',
-      description: 'Restores focus immediately and grants +500 Gold upon use.',
-      rarity: 'Rare',
-      slot: 'consumable',
-      icon: 'science',
-      priceGold: 800,
-      stats: {},
-      consumableType: 'gold',
-      consumableValue: 500
-    },
-    {
-      id: 'cons_2',
-      name: 'Essence Rune Scroll',
-      description: 'Ancient parchment granting instant +400 XP directly to the hunter.',
-      rarity: 'Epic',
-      slot: 'consumable',
-      icon: 'auto_stories',
-      priceGold: 1500,
-      stats: {},
-      consumableType: 'xp',
-      consumableValue: 400
-    }
-  ],
+  inventory: [],
   titlesUnlocked: [
-    "The Weakest Hunter",
-    "Awakened Novice Hunter",
-    "The Aspiring Shadow"
+    "The Weakest Hunter"
   ],
   avatarId: 'monarch-shadow',
-  avatarFrame: 'frame-c',
+  avatarFrame: 'frame-e',
   hunterClass: 'Monarca'
 };
 
@@ -166,10 +137,10 @@ export const INITIAL_QUESTS: Quest[] = [
     rank: Rank.E,
     category: 'mindfulness',
     rewards: { xp: 120, gold: 80, essenceStones: 3 },
-    completed: true,
+    completed: false,
     isDaily: true,
     targetCount: 15,
-    currentCount: 15,
+    currentCount: 0,
     unit: 'min',
     createdAt: new Date().toISOString()
   },
@@ -678,21 +649,7 @@ export const INITIAL_SHADOW_EXPEDITIONS: ShadowExpedition[] = [
   },
 ];
 
-export const INITIAL_ACTIVITY_HISTORY: ActivityDay[] = [
-  { date: '2026-08-25', deepWorkMinutes: 45, workoutReps: 80, questsCompleted: 3, xpEarned: 1200 },
-  { date: '2026-08-26', deepWorkMinutes: 60, workoutReps: 100, questsCompleted: 4, xpEarned: 1800 },
-  { date: '2026-08-27', deepWorkMinutes: 30, workoutReps: 60, questsCompleted: 2, xpEarned: 900 },
-  { date: '2026-08-28', deepWorkMinutes: 90, workoutReps: 120, questsCompleted: 5, xpEarned: 2400 },
-  { date: '2026-08-29', deepWorkMinutes: 75, workoutReps: 100, questsCompleted: 4, xpEarned: 1950 },
-  { date: '2026-08-30', deepWorkMinutes: 120, workoutReps: 150, questsCompleted: 6, xpEarned: 3500 },
-  { date: '2026-08-31', deepWorkMinutes: 50, workoutReps: 80, questsCompleted: 3, xpEarned: 1400 },
-  { date: '2026-09-01', deepWorkMinutes: 90, workoutReps: 110, questsCompleted: 4, xpEarned: 2200 },
-  { date: '2026-09-02', deepWorkMinutes: 80, workoutReps: 100, questsCompleted: 4, xpEarned: 2100 },
-  { date: '2026-09-03', deepWorkMinutes: 110, workoutReps: 140, questsCompleted: 5, xpEarned: 3000 },
-  { date: '2026-09-04', deepWorkMinutes: 60, workoutReps: 90, questsCompleted: 3, xpEarned: 1700 },
-  { date: '2026-09-05', deepWorkMinutes: 130, workoutReps: 160, questsCompleted: 6, xpEarned: 4200 },
-  { date: '2026-09-06', deepWorkMinutes: 95, workoutReps: 120, questsCompleted: 5, xpEarned: 2800 },
-];
+export const INITIAL_ACTIVITY_HISTORY: ActivityDay[] = [];
 
 export const INITIAL_SKILLS: HunterSkill[] = [
   {
