@@ -21,6 +21,16 @@ import WeeklyAuditModal from './components/WeeklyAuditModal';
 import FocusDungeonModal from './components/FocusDungeonModal';
 import MirrorShadowModal from './components/MirrorShadowModal';
 import HunterLicenseModal from './components/HunterLicenseModal';
+import AuthModal from './components/AuthModal';
+import SystemTourModal from './components/SystemTourModal';
+import { 
+  onHunterAuthStateChange, 
+  signOutHunter, 
+  syncHunterProfile, 
+  syncQuestsToSupabase, 
+  loadHunterProfile, 
+  loadQuestsFromSupabase 
+} from './utils/supabase';
 
 import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport } from './types';
 import {
@@ -50,24 +60,11 @@ import { INITIAL_PLAYER, INITIAL_QUESTS, INITIAL_DUNGEONS, INITIAL_SHADOW_EXPEDI
 import { getRankFromLevel, getTitleFromLevel } from './utils/calculator';
 import { sound } from './utils/sound';
 import confetti from 'canvas-confetti';
-import { User as FirebaseUser } from 'firebase/auth';
-import {
-  loginWithGoogle,
-  logoutHunter,
-  onHunterAuthStateChanged,
-  syncHunterToFirestore,
-  syncQuestsToFirestore,
-  syncDungeonsToFirestore,
-  loadUserDataFromFirestore,
-} from './utils/firebase';
-
 type Page = 'dashboard' | 'dungeons' | 'inventory' | 'shop' | 'shadows' | 'skills' | 'bosses' | 'analytics';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [awakened, setAwakened] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [player, setPlayer] = useState<Player>(loadStoredPlayer);
   const [quests, setQuests] = useState<Quest[]>(loadStoredQuests);
   const [dungeons, setDungeons] = useState<Dungeon[]>(loadStoredDungeons);
@@ -89,6 +86,10 @@ const App: React.FC = () => {
   const [isFocusModalOpen, setIsFocusModalOpen] = useState<boolean>(false);
   const [isMirrorModalOpen, setIsMirrorModalOpen] = useState<boolean>(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [systemModal, setSystemModal] = useState<SystemModalData>({
     isOpen: false,
     title: '',
@@ -96,42 +97,36 @@ const App: React.FC = () => {
     onClose: () => {},
   });
 
-  // Initial load of awakening & daily check
+  // Supabase Auth Listener
   useEffect(() => {
-    const isAwake = loadIsAwakened();
-    setAwakened(isAwake);
-    sound.enabled = player.soundEnabled;
-
-    checkDailyReset(player, quests, (updatedPlayer, updatedQuests) => {
-      setPlayer(updatedPlayer);
-      setQuests(updatedQuests);
-      addLog('Nuevo ciclo diario comenzado. Misiones diarias reseteadas.', 'quest');
-    });
-  }, []);
-
-  // Firebase Auth State Listener & Cloud Sync
-  useEffect(() => {
-    const unsubscribe = onHunterAuthStateChanged(async (user) => {
+    const unsubscribe = onHunterAuthStateChange(async (user) => {
       setCurrentUser(user);
       if (user) {
         setIsSyncing(true);
         try {
-          const cloudData = await loadUserDataFromFirestore(user.uid);
-          if (cloudData) {
+          const cloudProfile = await loadHunterProfile(user.id);
+          const cloudQuests = await loadQuestsFromSupabase(user.id);
+
+          if (cloudProfile) {
             setPlayer((prev) => {
-              const merged = { ...prev, ...cloudData };
+              const merged = { ...prev, ...cloudProfile };
               saveStoredPlayer(merged);
               return merged;
             });
-            addLog(`Progreso cargado desde Firebase Firestore para ${user.displayName || user.email}.`, 'system');
+            addLog(`Progreso recuperado de Supabase para ${user.email}.`, 'system');
           } else {
-            await syncHunterToFirestore(user.uid, player);
-            await syncQuestsToFirestore(user.uid, quests);
-            await syncDungeonsToFirestore(user.uid, dungeons);
-            addLog('Progreso inicial del cazador sincronizado en Firebase Firestore.', 'system');
+            // First time this user logs in: sync local state to Supabase
+            await syncHunterProfile(user.id, player);
+            await syncQuestsToSupabase(user.id, quests);
+            addLog('Perfil inicial registrado en la nube de Supabase.', 'system');
+          }
+
+          if (cloudQuests && cloudQuests.length > 0) {
+            setQuests(cloudQuests);
+            saveStoredQuests(cloudQuests);
           }
         } catch (err) {
-          console.error('Firebase initial sync error:', err);
+          console.warn('Initial Supabase sync check:', err);
         } finally {
           setIsSyncing(false);
         }
@@ -141,48 +136,34 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Auto-sync player changes to Firebase
+  // Auto-sync changes to Supabase when logged in
   useEffect(() => {
     if (currentUser) {
       const timer = setTimeout(() => {
-        syncHunterToFirestore(currentUser.uid, player).catch(() => {});
-      }, 1500);
+        syncHunterProfile(currentUser.id, player).catch(() => {});
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [player, currentUser]);
 
-  const handleLoginGoogle = async () => {
-    sound.playBeep(600, 0.05);
-    setIsSyncing(true);
-    try {
-      const user = await loginWithGoogle();
-      if (user) {
-        sound.playAwakening();
-        addLog(`Cazador verificado por Google: ${user.email}`, 'system');
-        await syncHunterToFirestore(user.uid, player);
-        await syncQuestsToFirestore(user.uid, quests);
-        await syncDungeonsToFirestore(user.uid, dungeons);
-        setSystemModal({
-          isOpen: true,
-          title: '¡VÍNCULO CUÁNTICO CONECTADO!',
-          subtitle: `El Sistema ha enlazado tu cuenta con Firebase Firestore (${user.email}). Tu progreso ahora se sincroniza en la nube.`,
-          type: 'info',
-          onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  // Initial load of awakening, tour check & daily check
+  useEffect(() => {
+    const isAwake = loadIsAwakened();
+    setAwakened(isAwake);
+    sound.enabled = player.soundEnabled;
 
-  const handleLogoutGoogle = async () => {
-    sound.playBeep(450, 0.05);
-    await logoutHunter();
-    setCurrentUser(null);
-    addLog('Sesión de Firebase cerrada. El progreso continúa guardándose localmente.', 'system');
-  };
+    // Check if player has seen the system tour
+    const hasSeenTour = localStorage.getItem('shadow_system_tour_seen');
+    if (!hasSeenTour && isAwake) {
+      setIsTourModalOpen(true);
+    }
+
+    checkDailyReset(player, quests, (updatedPlayer, updatedQuests) => {
+      setPlayer(updatedPlayer);
+      setQuests(updatedQuests);
+      addLog('Nuevo ciclo diario comenzado. Misiones diarias reseteadas.', 'quest');
+    });
+  }, []);
 
   // Sync sound setting
   const toggleSound = () => {
@@ -1255,10 +1236,16 @@ const App: React.FC = () => {
         current={currentPage}
         onToggleSound={toggleSound}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onStartTour={() => setIsTourModalOpen(true)}
         currentUser={currentUser}
         isSyncing={isSyncing}
-        onLoginGoogle={handleLoginGoogle}
-        onLogoutGoogle={handleLogoutGoogle}
+        onLogout={async () => {
+          sound.playBeep(420, 0.05);
+          await signOutHunter();
+          setCurrentUser(null);
+          addLog('Sesión cerrada. El progreso continúa guardándose localmente.', 'system');
+        }}
       />
 
       {/* Main View Port */}
@@ -1451,6 +1438,34 @@ const App: React.FC = () => {
           onClose={() => setIsLicenseModalOpen(false)}
         />
       )}
+
+      {/* Supabase Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          addLog(`Cazador verificado en Supabase: ${user.email}`, 'system');
+          setSystemModal({
+            isOpen: true,
+            title: '¡VÍNCULO CUÁNTICO CONECTADO!',
+            subtitle: `El Sistema ha enlazado tu progreso con la nube de Supabase (${user.email}). Ahora puedes acceder desde cualquier dispositivo.`,
+            type: 'info',
+            onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+          });
+        }}
+      />
+
+      {/* Interactive System Guided Tour for First-time and On-demand Players */}
+      <SystemTourModal
+        isOpen={isTourModalOpen}
+        onClose={() => setIsTourModalOpen(false)}
+        onComplete={() => {
+          localStorage.setItem('shadow_system_tour_seen', 'true');
+          setIsTourModalOpen(false);
+          addLog('Protocolo de iniciación del Sistema completado.', 'system');
+        }}
+      />
 
       <SystemModal
         isOpen={systemModal.isOpen}

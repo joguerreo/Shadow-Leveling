@@ -10,10 +10,11 @@ interface NavbarProps {
   current: string;
   onToggleSound: () => void;
   onOpenProfileModal?: () => void;
-  currentUser?: { displayName: string | null; email: string | null; photoURL?: string | null } | null;
+  onOpenAuth?: () => void;
+  onStartTour?: () => void;
+  currentUser?: { displayName?: string | null; email?: string | null; id?: string } | null;
   isSyncing?: boolean;
-  onLoginGoogle?: () => void;
-  onLogoutGoogle?: () => void;
+  onLogout?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -22,10 +23,11 @@ const Navbar: React.FC<NavbarProps> = ({
   current,
   onToggleSound,
   onOpenProfileModal,
+  onOpenAuth,
+  onStartTour,
   currentUser,
   isSyncing,
-  onLoginGoogle,
-  onLogoutGoogle,
+  onLogout,
 }) => {
   const combatPower = calculateCombatPower(player);
 
@@ -151,25 +153,37 @@ const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* Header Resources & Stats */}
-      <div className="flex items-center gap-3 md:gap-5">
-        {/* Currencies Pill */}
-        <div className="flex items-center gap-3 bg-surface-dark border border-border-dark px-3 py-1.5 rounded-xl text-xs">
-          <div className="flex items-center gap-1.5" title="Gold Credits">
+      {/* Header Resources, Tour, Auth & Stats */}
+      <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 shrink-0">
+        {/* Currencies Pill - Mobile compact */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 bg-surface-dark border border-border-dark px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs">
+          <div className="flex items-center gap-1" title="Gold Credits">
             <span className="material-symbols-outlined text-yellow-400 text-sm">monetization_on</span>
-            <span className="text-white font-black">{player.gold.toLocaleString()}</span>
+            <span className="text-white font-black text-[10px] sm:text-xs">{player.gold.toLocaleString()}</span>
           </div>
-          <div className="w-px h-3.5 bg-white/10" />
-          <div className="flex items-center gap-1.5" title="Essence Stones">
+          <div className="w-px h-3 bg-white/10" />
+          <div className="flex items-center gap-1" title="Essence Stones">
             <span className="material-symbols-outlined text-accent text-sm">diamond</span>
-            <span className="text-accent font-black">{player.essenceStones}</span>
+            <span className="text-accent font-black text-[10px] sm:text-xs">{player.essenceStones}</span>
           </div>
         </div>
+
+        {/* Guided Tour Trigger Button */}
+        <button
+          onClick={() => {
+            sound.playBeep(540, 0.04);
+            onStartTour?.();
+          }}
+          className="size-7 sm:size-8 rounded-lg bg-surface-dark border border-border-dark flex items-center justify-center text-primary hover:text-white transition-all hover:border-primary/50"
+          title="Guía del Sistema: Aprende cómo subir de nivel"
+        >
+          <span className="material-symbols-outlined text-base">help_outline</span>
+        </button>
 
         {/* Sound Toggle */}
         <button
           onClick={onToggleSound}
-          className="size-8 rounded-lg bg-surface-dark border border-border-dark flex items-center justify-center text-slate-400 hover:text-white transition-all hover:border-primary/50"
+          className="size-7 sm:size-8 rounded-lg bg-surface-dark border border-border-dark flex items-center justify-center text-slate-400 hover:text-white transition-all hover:border-primary/50"
           title={player.soundEnabled ? 'Silenciar Efectos de Audio' : 'Activar Sonido del Sistema'}
         >
           <span className="material-symbols-outlined text-base">
@@ -177,47 +191,52 @@ const Navbar: React.FC<NavbarProps> = ({
           </span>
         </button>
 
-        {/* Cloud Sync & Firebase Status */}
+        {/* Supabase Cloud Sync / Auth Trigger */}
         {currentUser ? (
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs"
-            title={`Conectado a Firebase: ${currentUser.email}`}
+            className="flex items-center gap-1 px-2 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs"
+            title={`Conectado a Supabase: ${currentUser.email}`}
           >
             <span className={`material-symbols-outlined text-sm text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`}>
               {isSyncing ? 'sync' : 'cloud_done'}
             </span>
-            <span className="text-[10px] font-mono text-emerald-300 font-bold hidden sm:inline">
-              NUBE
+            <span className="text-[10px] font-mono text-emerald-300 font-bold hidden md:inline">
+              SUPABASE
             </span>
-            <button
-              onClick={onLogoutGoogle}
-              className="ml-1 text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
-              title="Cerrar sesión de Firebase"
-            >
-              <span className="material-symbols-outlined text-xs">logout</span>
-            </button>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="ml-1 text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
+                title="Cerrar sesión"
+              >
+                <span className="material-symbols-outlined text-xs">logout</span>
+              </button>
+            )}
           </div>
         ) : (
           <button
-            onClick={onLoginGoogle}
-            className="flex items-center gap-1.5 px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/50 hover:border-primary rounded-xl text-xs text-primary hover:text-white transition-all shadow-sm"
-            title="Sincronizar progreso con Firebase (Google Login)"
+            onClick={() => {
+              sound.playBeep(580, 0.04);
+              onOpenAuth?.();
+            }}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/50 hover:border-primary rounded-xl text-xs text-primary hover:text-white transition-all shadow-sm"
+            title="Conectar con Supabase (Base de datos y Login)"
           >
-            <span className="material-symbols-outlined text-sm">cloud_upload</span>
-            <span className="text-[11px] font-bold hidden sm:inline font-mono">CONECTAR NUBE</span>
+            <span className="material-symbols-outlined text-sm">login</span>
+            <span className="text-[10px] font-bold hidden sm:inline font-mono">LOGIN</span>
           </button>
         )}
 
-        {/* Hunter Badge / Profile Trigger */}
+        {/* Hunter Badge / Profile Trigger with Mobile CP display */}
         <div 
           onClick={() => {
             sound.playBeep(560, 0.04);
             onOpenProfileModal?.();
           }}
-          className="flex items-center gap-3 pl-2 border-l border-white/10 cursor-pointer group select-none"
-          title="Abrir Perfil del Cazador & Catálogo de Avatares"
+          className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-white/10 cursor-pointer group select-none"
+          title="Abrir Perfil del Cazador"
         >
-          <div className="hidden lg:flex flex-col items-end">
+          <div className="hidden sm:flex flex-col items-end">
             <span className="text-[10px] font-black text-primary uppercase tracking-wider group-hover:text-accent transition-colors">
               {player.rank} • LVL {player.level}
             </span>
@@ -235,6 +254,7 @@ const Navbar: React.FC<NavbarProps> = ({
           />
         </div>
       </div>
+
     </nav>
   );
 };

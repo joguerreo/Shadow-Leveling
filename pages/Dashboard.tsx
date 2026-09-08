@@ -128,9 +128,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col space-y-1">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
+            <div className="flex flex-col space-y-1.5 w-full">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em]">
                   ESTADO DEL CAZADOR
                 </span>
                 <span className="px-2 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-black text-primary uppercase">
@@ -141,31 +141,33 @@ const Dashboard: React.FC<DashboardProps> = ({
                   className="px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded text-[9px] font-mono text-slate-300 hover:text-white border border-white/5 transition-all flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined text-[11px]">palette</span>
-                  Cambiar Aspecto
+                  <span>Aspecto</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-baseline gap-4 pt-1">
-                <h2 className="text-white text-4xl md:text-5xl font-black italic tracking-tighter text-glow font-display">
+              <div className="flex flex-wrap items-baseline gap-2 sm:gap-4 pt-1">
+                <h2 className="text-white text-3xl sm:text-4xl md:text-5xl font-black italic tracking-tighter text-glow font-display break-all sm:break-normal">
                   {player.name}
                 </h2>
-                <span className="text-primary text-xl font-black uppercase tracking-widest font-mono">
-                  LVL {player.level}
-                </span>
-                <span className="text-accent text-xl font-black uppercase tracking-widest font-mono">
-                  {player.rank}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-primary text-base sm:text-xl font-black uppercase tracking-widest font-mono">
+                    LVL {player.level}
+                  </span>
+                  <span className="text-accent text-base sm:text-xl font-black uppercase tracking-widest font-mono">
+                    [{player.rank}]
+                  </span>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 pt-1">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-mono text-slate-400 pt-1">
                 <span className="flex items-center gap-1">
                   <span className="material-symbols-outlined text-yellow-500 text-sm">local_fire_department</span>
-                  Racha: <strong className="text-white">{player.streakDays} días</strong>
+                  Racha: <strong className="text-white">{player.streakDays}d</strong>
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <span className="material-symbols-outlined text-primary text-sm">swords</span>
-                  Poder: <strong className="text-primary">{combatPower.toLocaleString()}</strong>
+                  Poder: <strong className="text-primary">{combatPower.toLocaleString()} CP</strong>
                 </span>
               </div>
             </div>
