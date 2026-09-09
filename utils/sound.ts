@@ -201,6 +201,12 @@ class SoundManager {
     }
   }
 
+  /**
+   * Sound effect for breaking a forbidden pact:
+   * Phase 1: Shattered Oath (Dissonant heavy bass fracture + crackle) indicating the fall/loss of HP.
+   * Phase 2: Phoenix / Monarch Resurgence (An inspiring, bright rising major harmonic arpeggio)
+   * that psychologically motivates the hunter to rise back up immediately.
+   */
   public playPactViolation() {
     if (!this.enabled) return;
     try {
@@ -209,23 +215,128 @@ class SoundManager {
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
       const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(50, now + 0.35);
+      // --- PHASE 1: EL IMPACTO DE LA CAÍDA (0.0s - 0.4s) ---
+      // Heavy dissonant descending saw drops
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(220, now);
+      osc1.frequency.exponentialRampToValueAtTime(45, now + 0.38);
+      gain1.gain.setValueAtTime(0.35, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.4);
 
-      gain.gain.setValueAtTime(0.32, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      // Minor second dissonance clash for tension
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(233, now);
+      osc2.frequency.exponentialRampToValueAtTime(50, now + 0.32);
+      gain2.gain.setValueAtTime(0.25, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now);
+      osc2.stop(now + 0.35);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      // Shatter noise burst (glass/crystal rupture feeling)
+      try {
+        const bufferSize = Math.floor(ctx.sampleRate * 0.12);
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const whiteNoise = ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
 
-      osc.start(now);
-      osc.stop(now + 0.35);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2400, now);
+        filter.Q.setValueAtTime(3, now);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.18, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        whiteNoise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+
+        whiteNoise.start(now);
+        whiteNoise.stop(now + 0.12);
+      } catch {
+        // Fallback if noise buffer fails
+      }
+
+      // --- PHASE 2: EL RESURGIR DEL MONARCA (0.35s - 1.5s) ---
+      // Inspiring rising arpeggio (D3 -> A3 -> D4 -> F#4 -> A4 -> D5)
+      // Representing resilience, hope, and the iron will to stand back up.
+      const resurgenceNotes = [
+        { freq: 146.83, delay: 0.35, dur: 0.6, gain: 0.18 }, // D3
+        { freq: 220.00, delay: 0.42, dur: 0.5, gain: 0.16 }, // A3
+        { freq: 293.66, delay: 0.50, dur: 0.55, gain: 0.18 }, // D4
+        { freq: 369.99, delay: 0.60, dur: 0.6, gain: 0.20 }, // F#4
+        { freq: 440.00, delay: 0.70, dur: 0.7, gain: 0.22 }, // A4
+        { freq: 587.33, delay: 0.82, dur: 0.85, gain: 0.25 }, // D5
+      ];
+
+      resurgenceNotes.forEach(({ freq, delay, dur, gain: vol }) => {
+        const noteOsc = ctx.createOscillator();
+        const noteGain = ctx.createGain();
+        const startTime = now + delay;
+
+        noteOsc.type = 'triangle';
+        noteOsc.frequency.setValueAtTime(freq, startTime);
+
+        noteGain.gain.setValueAtTime(0.001, startTime);
+        noteGain.gain.linearRampToValueAtTime(vol, startTime + 0.04);
+        noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+
+        noteOsc.connect(noteGain);
+        noteGain.connect(ctx.destination);
+
+        noteOsc.start(startTime);
+        noteOsc.stop(startTime + dur);
+      });
+
+      // Supporting warm sub-bass pad of determination
+      const padOsc = ctx.createOscillator();
+      const padGain = ctx.createGain();
+      const padStart = now + 0.35;
+      padOsc.type = 'sine';
+      padOsc.frequency.setValueAtTime(73.42, padStart);
+      padGain.gain.setValueAtTime(0.001, padStart);
+      padGain.gain.linearRampToValueAtTime(0.2, padStart + 0.1);
+      padGain.gain.exponentialRampToValueAtTime(0.001, padStart + 1.2);
+      padOsc.connect(padGain);
+      padGain.connect(ctx.destination);
+      padOsc.start(padStart);
+      padOsc.stop(padStart + 1.25);
     } catch {
       // Ignore
+    }
+  }
+
+  /**
+   * Motivational system voice synthesis (spoken audio)
+   */
+  public speakMotivationalPrompt(text: string) {
+    if (!this.enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 1.02;
+      utterance.pitch = 0.95;
+      utterance.volume = 0.85;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Fallback
     }
   }
 

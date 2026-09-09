@@ -20,6 +20,7 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
   onOpenPenaltyModal,
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'nutrition' | 'health' | 'discipline'>('all');
 
   // New Pact Form State
@@ -85,19 +86,30 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
             <span className="material-symbols-outlined text-red-500 text-xl">gavel</span>
           </h3>
           <p className="text-slate-400 text-xs mt-1 max-w-2xl leading-relaxed">
-            Cada infracción (refresco, comida chatarra, desvelo) drena tus Puntos de Salud (HP) y Oro. Mantener tus días limpios fortalece tu racha.
+            Cada infracción (cerveza/alcohol, tabaco, refresco, chatarra, desvelo) drena tus Puntos de Salud (HP) y Oro. Al caer, el Sistema hace sonar el llamado del resurgimiento para que te levantes de inmediato.
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              sound.playPactViolation();
+            }}
+            className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[11px] sm:text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95"
+            title="Escuchar sonido de advertencia y resurgimiento al quebrar un pacto"
+          >
+            <span className="material-symbols-outlined text-sm sm:text-base text-yellow-400">volume_up</span>
+            <span className="hidden sm:inline">Audio Resurgir</span>
+          </button>
+
           {isCriticalHp && (
             <button
               onClick={onOpenPenaltyModal}
-              className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-red-600/40 animate-bounce active:scale-95"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[11px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-red-600/40 animate-bounce active:scale-95"
             >
               <span className="material-symbols-outlined text-base">emergency</span>
-              <span>¡Purificar HP en Castigo!</span>
+              <span>¡Purificar HP!</span>
             </button>
           )}
 
@@ -106,20 +118,36 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
               sound.playBeep(520, 0.05);
               setIsCreateOpen(true);
             }}
-            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95"
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95"
           >
-            <span className="material-symbols-outlined text-base text-red-400">add</span>
+            <span className="material-symbols-outlined text-sm sm:text-base text-red-400">add</span>
             <span>Nuevo Pacto</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playBeep(450, 0.03);
+              setIsCollapsed(!isCollapsed);
+            }}
+            className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 hover:text-white text-[11px] sm:text-xs font-mono font-bold flex items-center gap-1 transition-all active:scale-95"
+            title={isCollapsed ? 'Expandir lista de pactos' : 'Contraer para ahorrar espacio'}
+          >
+            <span className="material-symbols-outlined text-sm sm:text-base">
+              {isCollapsed ? 'expand_more' : 'expand_less'}
+            </span>
+            <span>{isCollapsed ? `Ver Pactos (${pacts.filter(p => p.active).length})` : 'Contraer'}</span>
           </button>
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-1.5 pt-3 pb-2 overflow-x-auto no-scrollbar">
+      {!isCollapsed && (
+        <>
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1.5 pt-3 pb-2 overflow-x-auto no-scrollbar">
         {[
           { id: 'all', label: 'Todos los Pactos', icon: 'shield' },
+          { id: 'health', label: 'Salud & Vicios (Alcohol/Humo)', icon: 'favorite' },
           { id: 'nutrition', label: 'Nutrición / Cero Azúcar', icon: 'restaurant' },
-          { id: 'health', label: 'Salud & Sueño', icon: 'favorite' },
           { id: 'discipline', label: 'Disciplina Digital', icon: 'psychology' },
         ].map((tab) => (
           <button
@@ -215,6 +243,8 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
           );
         })}
       </div>
+      </>
+      )}
 
       {/* Modal: Create Custom Pact */}
       {isCreateOpen && (
@@ -289,11 +319,14 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
                     onChange={(e) => setNewIcon(e.target.value)}
                     className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-red-500"
                   >
+                    <option value="sports_bar">Cerveza / Alcohol (sports_bar)</option>
+                    <option value="wine_bar">Copas / Licores (wine_bar)</option>
+                    <option value="smoking_rooms">Cigarro / Vapeo (smoking_rooms)</option>
                     <option value="local_drink">Vaso / Refresco (local_drink)</option>
+                    <option value="cookie">Azúcar / Dulces (cookie)</option>
                     <option value="fastfood">Comida Rápida (fastfood)</option>
                     <option value="smartphone">Móvil / Redes (smartphone)</option>
                     <option value="bedtime">Noche / Desvelo (bedtime)</option>
-                    <option value="smoking_rooms">Cigarro (smoking_rooms)</option>
                     <option value="sports_esports">Videojuegos (sports_esports)</option>
                     <option value="shopping_bag">Compras (shopping_bag)</option>
                   </select>

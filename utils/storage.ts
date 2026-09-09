@@ -314,27 +314,45 @@ export function saveSystemLogs(logs: SystemLog[]): void {
   }
 }
 
+export function getLocalTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function checkDailyReset(
   player: Player,
   quests: Quest[],
   onReset: (updatedPlayer: Player, updatedQuests: Quest[]) => void
 ) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalTodayDateString();
   if (player.lastActiveDate !== todayStr) {
     // A new day has begun!
-    const allDailiesCompleted = quests
-      .filter((q) => q.isDaily)
-      .every((q) => q.completed);
+    const dailyQuests = quests.filter((q) => q.isDaily);
+    const allDailiesCompleted = dailyQuests.length > 0 && dailyQuests.every((q) => q.completed);
 
-    const prevDate = new Date(player.lastActiveDate);
-    const currDate = new Date(todayStr);
-    const diffDays = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24));
+    let diffDays = 1;
+    if (player.lastActiveDate) {
+      const partsPrev = player.lastActiveDate.split('-').map(Number);
+      const partsCurr = todayStr.split('-').map(Number);
+      if (partsPrev.length === 3 && partsCurr.length === 3) {
+        const d1 = new Date(partsPrev[0], partsPrev[1] - 1, partsPrev[2]);
+        const d2 = new Date(partsCurr[0], partsCurr[1] - 1, partsCurr[2]);
+        diffDays = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+    }
 
     let newStreak = player.streakDays;
-    if (allDailiesCompleted && diffDays === 1) {
-      newStreak += 1;
+    if (diffDays === 1) {
+      if (allDailiesCompleted) {
+        newStreak += 1;
+      } else {
+        newStreak = 0;
+      }
     } else if (diffDays > 1) {
-      newStreak = 1;
+      newStreak = 0;
     }
 
     // Reset daily quests
@@ -349,14 +367,63 @@ export function checkDailyReset(
       return q;
     });
 
+    // Update pacts clean streak for active pacts
+    const updatedPacts = (player.forbiddenPacts || []).map((p) => {
+      if (p.active) {
+        return {
+          ...p,
+          cleanStreakDays: (p.cleanStreakDays || 0) + diffDays,
+        };
+      }
+      return p;
+    });
+
+    const maxHp = player.maxHp ?? 100;
+    const maxMp = player.maxMp ?? 300;
+
     const updatedPlayer: Player = {
       ...player,
+      hp: maxHp,
+      mp: maxMp,
       streakDays: newStreak,
       lastActiveDate: todayStr,
+      forbiddenPacts: updatedPacts,
     };
 
     saveStoredPlayer(updatedPlayer);
     saveStoredQuests(resetQuests);
     onReset(updatedPlayer, resetQuests);
   }
+}
+
+export function forceDailyReset(
+  player: Player,
+  quests: Quest[],
+  onReset: (updatedPlayer: Player, updatedQuests: Quest[]) => void
+) {
+  const todayStr = getLocalTodayDateString();
+  const resetQuests = quests.map((q) => {
+    if (q.isDaily) {
+      return {
+        ...q,
+        completed: false,
+        currentCount: 0,
+      };
+    }
+    return q;
+  });
+
+  const maxHp = player.maxHp ?? 100;
+  const maxMp = player.maxMp ?? 300;
+
+  const updatedPlayer: Player = {
+    ...player,
+    hp: maxHp,
+    mp: maxMp,
+    lastActiveDate: todayStr,
+  };
+
+  saveStoredPlayer(updatedPlayer);
+  saveStoredQuests(resetQuests);
+  onReset(updatedPlayer, resetQuests);
 }

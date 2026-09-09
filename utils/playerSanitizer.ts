@@ -96,9 +96,18 @@ export function sanitizePlayerData(raw: any): Player {
     lifestyleArchetype: (['guardian', 'scholar', 'shadow', 'monarch'].includes(raw.lifestyleArchetype || raw.lifestyle_archetype)
       ? (raw.lifestyleArchetype || raw.lifestyle_archetype)
       : 'monarch') as any,
-    forbiddenPacts: Array.isArray(raw.forbiddenPacts) && raw.forbiddenPacts.length > 0
-      ? raw.forbiddenPacts
-      : (Array.isArray(raw.forbidden_pacts) && raw.forbidden_pacts.length > 0 ? raw.forbidden_pacts : INITIAL_FORBIDDEN_PACTS),
+    forbiddenPacts: (() => {
+      const baseList: ForbiddenPact[] = Array.isArray(raw.forbiddenPacts) && raw.forbiddenPacts.length > 0
+        ? raw.forbiddenPacts
+        : (Array.isArray(raw.forbidden_pacts) && raw.forbidden_pacts.length > 0 ? raw.forbidden_pacts : INITIAL_FORBIDDEN_PACTS);
+      const merged = [...baseList];
+      for (const initPact of INITIAL_FORBIDDEN_PACTS) {
+        if (!merged.some((p) => p.id === initPact.id)) {
+          merged.push(initPact);
+        }
+      }
+      return merged;
+    })(),
     streakDays: Math.max(0, Number(raw.streakDays || raw.streak_days) || 0),
     soundEnabled: raw.soundEnabled ?? raw.sound_enabled ?? true,
     avatarId: raw.avatarId || raw.avatar_id || 'monarch-shadow',

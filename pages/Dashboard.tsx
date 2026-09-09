@@ -30,6 +30,7 @@ interface DashboardProps {
   onTriggerPactInfraction?: (pactId: string) => void;
   onAddCustomPact?: (pact: Omit<ForbiddenPact, 'id' | 'cleanStreakDays' | 'lastInfractionAt' | 'totalInfractions'>) => void;
   onTogglePactActive?: (pactId: string) => void;
+  onForceDailyReset?: () => void;
 }
 
 const ATTR_METADATA_FALLBACK: Record<'str' | 'int' | 'vit' | 'agi' | 'wis' | 'cha', { name: string; code: string; icon: string; color: string; bonusText: string }> = {
@@ -64,11 +65,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   onTriggerPactInfraction,
   onAddCustomPact,
   onTogglePactActive,
+  onForceDailyReset,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [resetTimer, setResetTimer] = useState<string>('00:00:00');
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
+  const [showAttrDetails, setShowAttrDetails] = useState<boolean>(false);
 
   const effectiveStats = getEffectiveAttributes(player);
   const combatPower = calculateCombatPower(player);
@@ -122,21 +125,57 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Hunter Status Banner */}
-      <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden group">
+      {/* Quick Jump Anchors for Mobile */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none sm:hidden">
+        <button
+          onClick={() => {
+            sound.playBeep(600, 0.03);
+            document.getElementById('quests-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="px-2.5 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 active:scale-95"
+        >
+          <span className="material-symbols-outlined text-xs">assignment</span>
+          <span>🎯 Misiones ({completedDailies}/{totalDailies})</span>
+        </button>
+
+        <button
+          onClick={() => {
+            sound.playBeep(520, 0.03);
+            document.getElementById('attributes-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 active:scale-95"
+        >
+          <span className="material-symbols-outlined text-xs">bar_chart</span>
+          <span>⚔️ Atributos</span>
+        </button>
+
+        <button
+          onClick={() => {
+            sound.playBeep(520, 0.03);
+            document.getElementById('pacts-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="px-2.5 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 active:scale-95"
+        >
+          <span className="material-symbols-outlined text-xs">gavel</span>
+          <span>🛡️ Pactos ({(player.forbiddenPacts || []).filter(p => p.active).length})</span>
+        </button>
+      </div>
+
+      {/* Hunter Status Banner (Ultra-Optimized Mobile & Desktop) */}
+      <section className="bg-surface-dark border border-border-dark rounded-xl sm:rounded-2xl p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity">
           <span className="material-symbols-outlined text-[130px]">military_tech</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 relative z-10">
+          <div className="flex flex-row items-center sm:items-center gap-3 sm:gap-5 w-full lg:w-auto">
             {/* Interactive Avatar */}
             <div 
               onClick={() => {
                 sound.playBeep(580, 0.04);
                 onOpenProfileModal?.();
               }}
-              className="cursor-pointer group/avatar relative"
+              className="cursor-pointer group/avatar relative shrink-0"
               title="Haz clic para personalizar Avatar y Evolución"
             >
               <HunterAvatar
@@ -145,95 +184,85 @@ const Dashboard: React.FC<DashboardProps> = ({
                 size="xl"
                 showGlow
                 animated
-                className="group-hover/avatar:scale-105 transition-transform"
+                className="size-16 sm:size-24 group-hover/avatar:scale-105 transition-transform"
               />
-              <div className="absolute -bottom-1 -right-1 size-6 bg-primary rounded-full flex items-center justify-center text-white border-2 border-surface-dark shadow-md shadow-primary/40 group-hover/avatar:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-xs">edit</span>
+              <div className="absolute -bottom-1 -right-1 size-5 sm:size-6 bg-primary rounded-full flex items-center justify-center text-white border-2 border-surface-dark shadow-md shadow-primary/40 group-hover/avatar:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-[10px] sm:text-xs">edit</span>
               </div>
             </div>
 
-            <div className="flex flex-col space-y-1.5 w-full">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em]">
-                  ESTADO DEL CAZADOR
+            <div className="flex flex-col space-y-1 min-w-0 w-full">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">
+                  ESTADO
                 </span>
-                <span className="px-2 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-black text-primary uppercase">
+                <span className="px-1.5 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-black text-primary uppercase truncate max-w-[130px] sm:max-w-none">
                   {player.title}
                 </span>
                 <button
                   onClick={onOpenProfileModal}
-                  className="px-2 py-0.5 bg-primary/15 hover:bg-primary/25 rounded text-[9px] font-mono text-primary hover:text-white border border-primary/30 transition-all flex items-center gap-1"
+                  className="px-1.5 py-0.5 bg-primary/15 hover:bg-primary/25 rounded text-[9px] font-mono text-primary hover:text-white border border-primary/30 transition-all flex items-center gap-0.5"
                   title="Fase de evolución del avatar"
                 >
-                  <span className="material-symbols-outlined text-[11px]">upgrade</span>
+                  <span className="material-symbols-outlined text-[10px]">upgrade</span>
                   <span>Fase {evolutionStage.tier}/6</span>
-                </button>
-                <button
-                  onClick={onOpenProfileModal}
-                  className="px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded text-[9px] font-mono text-slate-300 hover:text-white border border-white/5 transition-all flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[11px]">palette</span>
-                  <span>Aspecto</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-baseline gap-2 sm:gap-4 pt-1">
-                <h2 className="text-white text-3xl sm:text-4xl md:text-5xl font-black italic tracking-tighter text-glow font-display break-all sm:break-normal">
+              <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-3">
+                <h2 className="text-white text-xl sm:text-3xl md:text-4xl font-black italic tracking-tighter text-glow font-display truncate max-w-[180px] sm:max-w-none">
                   {player.name}
                 </h2>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-primary text-base sm:text-xl font-black uppercase tracking-widest font-mono">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-primary text-xs sm:text-lg font-black uppercase tracking-wider font-mono">
                     LVL {player.level}
                   </span>
-                  <span className="text-accent text-base sm:text-xl font-black uppercase tracking-widest font-mono">
+                  <span className="text-accent text-xs sm:text-lg font-black uppercase tracking-wider font-mono">
                     [{player.rank}]
                   </span>
 
                   {/* Difficulty & Lifestyle Archetype Pill */}
                   <button
                     onClick={onOpenProfileModal}
-                    className="px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 text-red-300 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
-                    title="Configurar Dificultad y Arquetipo de Vida en tu Perfil"
+                    className="px-1.5 py-0.5 rounded bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 text-red-300 text-[9px] font-mono font-bold flex items-center gap-1 transition-all active:scale-95"
+                    title="Configurar Dificultad y Arquetipo de Vida"
                   >
-                    <span className="material-symbols-outlined text-xs text-red-400">tune</span>
-                    <span className="uppercase font-black tracking-wider">
+                    <span className="uppercase font-black">
                       {player.gameDifficulty === 'casual' ? 'Casual' : player.gameDifficulty === 'monarch' ? 'Monarca' : 'Cazador'}
                     </span>
                     <span className="text-slate-500">|</span>
                     <span className="text-slate-300">
-                      {player.lifestyleArchetype === 'guardian' ? '🛡️ Guardián' : player.lifestyleArchetype === 'scholar' ? '🧠 Erudito' : player.lifestyleArchetype === 'shadow' ? '⚡ Sombra' : '👑 Monarca'}
+                      {player.lifestyleArchetype === 'guardian' ? '🛡️' : player.lifestyleArchetype === 'scholar' ? '🧠' : player.lifestyleArchetype === 'shadow' ? '⚡' : '👑'}
                     </span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-mono text-slate-400 pt-1">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-yellow-500 text-sm">local_fire_department</span>
-                  Racha: <strong className="text-white">{player.streakDays}d</strong>
+              <div className="flex items-center gap-2 sm:gap-4 text-[11px] font-mono text-slate-400">
+                <span className="flex items-center gap-0.5 text-yellow-400">
+                  <span className="material-symbols-outlined text-xs">local_fire_department</span>
+                  Racha: <strong className="text-white font-bold">{player.streakDays}d</strong>
                 </span>
                 <span>•</span>
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-primary text-sm">swords</span>
-                  Poder: <strong className="text-primary">{combatPower.toLocaleString()} CP</strong>
+                <span className="flex items-center gap-0.5 text-primary">
+                  <span className="material-symbols-outlined text-xs">swords</span>
+                  Poder: <strong className="text-primary font-bold">{combatPower.toLocaleString()} CP</strong>
                 </span>
               </div>
             </div>
           </div>
 
           {/* XP, HP & MP Bars */}
-          <div className="w-full lg:w-2/5 flex flex-col gap-2.5">
+          <div className="w-full lg:w-2/5 flex flex-col gap-1.5 sm:gap-2.5">
             {/* XP Bar */}
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-end">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  PROGRESO DE XP
-                </span>
-                <span className="text-primary text-[11px] font-black font-mono italic">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">PROGRESO XP</span>
+                <span className="text-primary font-black font-mono">
                   {player.xp} / {player.maxXp} XP ({Math.round((player.xp / player.maxXp) * 100)}%)
                 </span>
               </div>
-              <div className="h-3 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+              <div className="h-2 sm:h-3 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
                 <div
                   className="h-full rounded-full xp-gradient system-glow transition-all duration-700 ease-out"
                   style={{ width: `${Math.min(100, (player.xp / player.maxXp) * 100)}%` }}
@@ -241,18 +270,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* HP Bar (Salud / Castigo de Pactos) */}
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-end">
-                <span className="text-[11px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-red-500">favorite</span>
-                  Puntos de Salud (HP)
+            {/* HP Bar */}
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
+                <span className="font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[11px] text-red-500">favorite</span>
+                  Salud (HP)
                 </span>
-                <span className={`text-[11px] font-black font-mono ${currentHp <= 25 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                <span className={`font-black font-mono ${currentHp <= 25 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
                   {currentHp} / {maxHp} HP
                 </span>
               </div>
-              <div className="h-2.5 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+              <div className="h-2 sm:h-2.5 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     currentHp <= 25
@@ -265,17 +294,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* MP Bar */}
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-end">
-                <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">bolt</span>
-                  Puntos de Maná (MP)
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
+                <span className="font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[11px]">bolt</span>
+                  Maná (MP)
                 </span>
-                <span className="text-indigo-400 text-[11px] font-black font-mono">
+                <span className="text-indigo-400 font-black font-mono">
                   {currentMp} / {maxMp} MP
                 </span>
               </div>
-              <div className="h-2 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+              <div className="h-1.5 sm:h-2 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-400 shadow-sm shadow-indigo-500/50 transition-all duration-500"
                   style={{ width: `${Math.min(100, (currentMp / maxMp) * 100)}%` }}
@@ -284,181 +313,177 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Quick Resource & Reset Timer Strip */}
+        <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1 text-yellow-400 font-bold">
+              <span className="material-symbols-outlined text-sm">monetization_on</span>
+              {player.gold.toLocaleString()} G
+            </span>
+            <span className="flex items-center gap-1 text-accent font-bold">
+              <span className="material-symbols-outlined text-sm">diamond</span>
+              {player.essenceStones} ES
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-slate-300 text-[11px]" title="Tiempo restante para el reseteo automático de medianoche">
+            <span className="material-symbols-outlined text-xs text-primary animate-spin" style={{ animationDuration: '6s' }}>schedule</span>
+            <span className="text-slate-400 hidden sm:inline">Reseteo Diario:</span>
+            <strong className="text-white font-mono">{resetTimer}</strong>
+          </div>
+        </div>
       </section>
 
-      {/* Main Grid: Attributes & Resources */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Attributes Column */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-white text-base font-black uppercase tracking-widest italic flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">bar_chart</span>
+      {/* Combat Attributes (Compact 3x2 Grid on Mobile, 6 Cols on Desktop) */}
+      <section id="attributes-section" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-base sm:text-lg">bar_chart</span>
+            <h3 className="text-white text-xs sm:text-sm font-black uppercase tracking-widest italic">
               Atributos de Combate
             </h3>
+          </div>
+          <div className="flex items-center gap-2">
             {player.statPoints > 0 && (
-              <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-xs font-black rounded-lg uppercase animate-pulse flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">stars</span>
-                {player.statPoints} Puntos Disponibles
+              <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[10px] sm:text-xs font-black rounded-lg uppercase animate-pulse flex items-center gap-1">
+                <span className="material-symbols-outlined text-xs">stars</span>
+                {player.statPoints} Puntos
               </span>
             )}
+            <button
+              onClick={() => setShowAttrDetails(!showAttrDetails)}
+              className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-all"
+              title="Alternar vista detallada de bonificadores"
+            >
+              <span className="material-symbols-outlined text-xs">{showAttrDetails ? 'unfold_less' : 'info'}</span>
+              <span>{showAttrDetails ? 'Ocultar info' : 'Ver info'}</span>
+            </button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {(['str', 'int', 'vit', 'agi', 'wis', 'cha'] as const).map((attrKey) => {
-              const meta = ATTR_METADATA_FALLBACK[attrKey];
-              const attrRaw = player.attributes?.[attrKey] || (player.attributes as any)?.[attrKey.toUpperCase()];
-              const baseVal = typeof attrRaw === 'number' ? attrRaw : (Number(attrRaw?.value) || 10);
-              const totalVal = effectiveStats?.[attrKey] ?? baseVal;
-              const gearBonus = Math.max(0, totalVal - baseVal);
-              const attrName = (typeof attrRaw === 'object' && attrRaw?.name) || meta.name;
-              const attrCode = (typeof attrRaw === 'object' && attrRaw?.code) || meta.code;
-              const attrIcon = (typeof attrRaw === 'object' && attrRaw?.icon) || meta.icon;
-              const attrColor = (typeof attrRaw === 'object' && attrRaw?.color) || meta.color;
-              const attrBonusText = (typeof attrRaw === 'object' && attrRaw?.bonusText) || meta.bonusText;
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          {(['str', 'int', 'vit', 'agi', 'wis', 'cha'] as const).map((attrKey) => {
+            const meta = ATTR_METADATA_FALLBACK[attrKey];
+            const attrRaw = player.attributes?.[attrKey] || (player.attributes as any)?.[attrKey.toUpperCase()];
+            const baseVal = typeof attrRaw === 'number' ? attrRaw : (Number(attrRaw?.value) || 10);
+            const totalVal = effectiveStats?.[attrKey] ?? baseVal;
+            const gearBonus = Math.max(0, totalVal - baseVal);
+            const attrName = (typeof attrRaw === 'object' && attrRaw?.name) || meta.name;
+            const attrCode = (typeof attrRaw === 'object' && attrRaw?.code) || meta.code;
+            const attrIcon = (typeof attrRaw === 'object' && attrRaw?.icon) || meta.icon;
+            const attrColor = (typeof attrRaw === 'object' && attrRaw?.color) || meta.color;
+            const attrBonusText = (typeof attrRaw === 'object' && attrRaw?.bonusText) || meta.bonusText;
 
-              return (
-                <div
-                  key={attrKey}
-                  className="bg-[#161b22] border border-[#30363d] hover:border-primary/50 rounded-xl p-4 transition-all duration-300 flex flex-col justify-between gap-3 group shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-xl ${attrColor}`}>
-                        {attrIcon}
-                      </span>
-                      <span className="text-xs font-black tracking-wider text-slate-200 uppercase">
-                        {attrName}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-400 group-hover:text-primary transition-colors">
-                      [{attrCode}]
+            return (
+              <div
+                key={attrKey}
+                className="bg-[#141822] border border-[#2b3240] hover:border-primary/50 rounded-xl p-2 sm:p-3 transition-all duration-200 flex flex-col justify-between group shadow-sm relative overflow-hidden"
+              >
+                {/* Header: Icon + Code */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className={`material-symbols-outlined text-base sm:text-lg ${attrColor}`}>
+                      {attrIcon}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black font-mono text-slate-300 uppercase">
+                      {attrCode}
                     </span>
                   </div>
+                  {player.statPoints > 0 && (
+                    <button
+                      onClick={() => onAllocateStat(attrKey)}
+                      className="size-5 sm:size-6 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm shadow-emerald-500/40"
+                      title={`+1 a ${attrName}`}
+                    >
+                      <span className="material-symbols-outlined text-xs">add</span>
+                    </button>
+                  )}
+                </div>
 
-                  <div className="flex items-baseline justify-between">
-                    <div className="flex items-baseline gap-1.5 font-mono">
-                      <span className="text-2xl font-black text-white">{totalVal}</span>
-                      {gearBonus > 0 && (
-                        <span className="text-[11px] font-bold text-emerald-400">
-                          (+{gearBonus})
-                        </span>
-                      )}
-                    </div>
+                {/* Stat value + gear bonus */}
+                <div className="flex items-baseline gap-1 pt-1">
+                  <span className="text-lg sm:text-2xl font-black text-white font-mono">{totalVal}</span>
+                  {gearBonus > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-400 font-mono">
+                      (+{gearBonus})
+                    </span>
+                  )}
+                </div>
 
-                    {player.statPoints > 0 && (
-                      <button
-                        onClick={() => onAllocateStat(attrKey)}
-                        className="size-7 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md shadow-emerald-500/30"
-                        title={`Asignar 1 punto a ${attrName}`}
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="text-slate-400 text-[10px] font-medium leading-tight">
+                {/* Attribute Bonus Description */}
+                {showAttrDetails && (
+                  <p className="text-slate-400 text-[9px] font-medium leading-tight mt-1 border-t border-white/5 pt-1">
                     {attrBonusText}
                   </p>
-                </div>
-              );
-            })}
-          </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Sidebar: Currencies & Daily Routine Reset */}
-        <div className="lg:col-span-4 space-y-4">
-          <h3 className="text-white text-base font-black uppercase tracking-widest italic flex items-center gap-2">
-            <span className="material-symbols-outlined text-yellow-500">account_balance_wallet</span>
-            Recursos & Sistema
-          </h3>
+        {/* Compact Quick Actions Toolbar (Oráculo, Puerta Roja, Castigo, Reiniciar Día) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <button
+            onClick={() => {
+              sound.playBeep(550, 0.05);
+              setShowOracleModal(true);
+            }}
+            className="py-2 px-2.5 bg-gradient-to-r from-indigo-950/60 to-purple-950/60 hover:from-indigo-900 hover:to-purple-900 border border-indigo-500/30 rounded-lg text-indigo-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+          >
+            <span className="material-symbols-outlined text-sm text-indigo-400">psychology</span>
+            <span>Oráculo IA</span>
+          </button>
 
-          <div className="bg-surface-dark border border-border-dark rounded-xl p-5 space-y-4">
-            {/* Gold */}
-            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-yellow-500">monetization_on</span>
-                <span className="text-xs font-semibold text-slate-300">Gold Credits</span>
-              </div>
-              <span className="text-white font-black font-mono">{player.gold.toLocaleString()}</span>
-            </div>
+          <button
+            onClick={() => {
+              sound.playBeep(450, 0.08);
+              onOpenEmergencyModal?.();
+            }}
+            className="py-2 px-2.5 bg-gradient-to-r from-red-950/60 to-rose-950/60 hover:from-red-900 hover:to-rose-900 border border-red-500/40 rounded-lg text-red-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 animate-pulse"
+          >
+            <span className="material-symbols-outlined text-sm text-red-400">crisis_alert</span>
+            <span>Puerta Roja</span>
+          </button>
 
-            {/* Essence Stones */}
-            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-accent">diamond</span>
-                <span className="text-xs font-semibold text-slate-300">Essence Stones</span>
-              </div>
-              <span className="text-accent font-black font-mono">{player.essenceStones}</span>
-            </div>
+          <button
+            onClick={onOpenPenaltyModal}
+            className="py-2 px-2.5 bg-surface-card hover:bg-white/5 border border-white/10 rounded-lg text-slate-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-sm text-yellow-500">fitness_center</span>
+            <span>Castigo</span>
+          </button>
 
-            {/* AI Oracle Advice Trigger Button */}
-            <button
-              onClick={() => {
-                sound.playBeep(550, 0.05);
-                setShowOracleModal(true);
-              }}
-              className="w-full py-2.5 bg-gradient-to-r from-indigo-900/60 to-purple-900/60 hover:from-indigo-800 hover:to-purple-800 border border-indigo-500/40 rounded-lg text-indigo-200 hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-sm text-indigo-400">psychology</span>
-              Oráculo del Sistema (IA)
-            </button>
-
-            {/* Daily Reset Countdown */}
-            <div className="p-3.5 bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-black uppercase text-slate-400">
-                  Reseteo Diario
-                </span>
-                <span className="text-[10px] font-black uppercase text-primary">
-                  {completedDailies}/{totalDailies} Misiones
-                </span>
-              </div>
-              <div className="text-2xl font-black font-mono text-white text-glow text-center py-1">
-                {resetTimer}
-              </div>
-              <p className="text-slate-400 text-[10px] text-center italic mt-1">
-                Completa tus misiones antes del reseteo para mantener tu racha activa.
-              </p>
-            </div>
-
-            {/* Red Gate Emergency Raid Button */}
-            <button
-              onClick={() => {
-                sound.playBeep(450, 0.08);
-                onOpenEmergencyModal?.();
-              }}
-              className="w-full py-2.5 bg-gradient-to-r from-red-950/80 to-rose-950/80 hover:from-red-900 hover:to-rose-900 border border-red-500/50 rounded-lg text-red-300 hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-red-950/50 active:scale-95 animate-pulse"
-            >
-              <span className="material-symbols-outlined text-sm text-red-400">emergency</span>
-              Puerta Roja (Misión de Emergencia)
-            </button>
-
-            {/* Emergency Penalty Zone Trigger Button */}
-            <button
-              onClick={onOpenPenaltyModal}
-              className="w-full py-2.5 bg-surface-card hover:bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-            >
-              <span className="material-symbols-outlined text-sm text-yellow-500">fitness_center</span>
-              Zona de Castigo (Entrenamiento)
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              if (onForceDailyReset) {
+                onForceDailyReset();
+              }
+            }}
+            className="py-2 px-2.5 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-500/30 rounded-lg text-blue-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            title="Reiniciar manualmente el ciclo de misiones diarias"
+          >
+            <span className="material-symbols-outlined text-sm text-blue-400">restart_alt</span>
+            <span>Reiniciar Día</span>
+          </button>
         </div>
-      </div>
+      </section>
 
       {/* Sistema Disciplinario: Pactos Prohibidos (Anti-Hábitos) */}
-      <ForbiddenPactsSection
-        player={player}
-        pacts={player.forbiddenPacts || []}
-        onTriggerInfraction={(pactId) => {
-          onTriggerPactInfraction?.(pactId);
-        }}
-        onAddCustomPact={onAddCustomPact}
-        onTogglePactActive={onTogglePactActive}
-        onOpenPenaltyModal={onOpenPenaltyModal}
-      />
+      <div id="pacts-section">
+        <ForbiddenPactsSection
+          player={player}
+          pacts={player.forbiddenPacts || []}
+          onTriggerInfraction={(pactId) => {
+            onTriggerPactInfraction?.(pactId);
+          }}
+          onAddCustomPact={onAddCustomPact}
+          onTogglePactActive={onTogglePactActive}
+          onOpenPenaltyModal={onOpenPenaltyModal}
+        />
+      </div>
 
       {/* Quests Section */}
-      <section className="space-y-4">
+      <section id="quests-section" className="space-y-4 scroll-mt-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary text-2xl">assignment</span>

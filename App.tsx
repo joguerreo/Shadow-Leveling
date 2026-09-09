@@ -59,6 +59,7 @@ import {
   loadSystemLogs,
   saveSystemLogs,
   checkDailyReset,
+  forceDailyReset,
 } from './utils/storage';
 import { INITIAL_PLAYER, INITIAL_QUESTS, INITIAL_DUNGEONS, INITIAL_SHADOW_EXPEDITIONS, INITIAL_SKILLS, INITIAL_ACHIEVEMENTS, INITIAL_WORLD_BOSSES } from './constants';
 import { getRankFromLevel, getTitleFromLevel } from './utils/calculator';
@@ -249,7 +250,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Initial load of awakening, tour check & daily check
+  // Initial load of awakening, tour check & periodic daily check
   useEffect(() => {
     const isAwake = loadIsAwakened();
     setAwakened(isAwake);
@@ -261,12 +262,31 @@ const App: React.FC = () => {
       setIsTourModalOpen(true);
     }
 
-    checkDailyReset(player, quests, (updatedPlayer, updatedQuests) => {
-      setPlayer(updatedPlayer);
-      setQuests(updatedQuests);
-      addLog('Nuevo ciclo diario comenzado. Misiones diarias reseteadas.', 'quest');
-    });
-  }, []);
+    const runDailyCheck = () => {
+      checkDailyReset(player, quests, (updatedPlayer, updatedQuests) => {
+        setPlayer(updatedPlayer);
+        setQuests(updatedQuests);
+        addLog('Nuevo ciclo diario comenzado. Misiones diarias reseteadas.', 'quest');
+      });
+    };
+
+    runDailyCheck();
+
+    const interval = setInterval(runDailyCheck, 30000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        runDailyCheck();
+      }
+    };
+    window.addEventListener('focus', runDailyCheck);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', runDailyCheck);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [player.lastActiveDate, quests]);
 
   // Sync sound setting
   const toggleSound = () => {
@@ -597,6 +617,7 @@ const App: React.FC = () => {
 
     if (nextHp <= 0) {
       sound.playPenaltyWarning();
+      sound.speakMotivationalPrompt('¡Salud agotada! El Sistema exige purificación en la Zona de Castigo. ¡Ponte de pie!');
       setSystemModal({
         isOpen: true,
         title: '¡SALUD AGOTADA: ZONA DE CASTIGO INMINENTE!',
@@ -608,10 +629,20 @@ const App: React.FC = () => {
         },
       });
     } else {
+      const motivationalQuotes = [
+        '«Una caída no define tu rango; lo que define a un Monarca es levantarse de inmediato sin dudar.»',
+        '«El veneno fue registrado, pero tu voluntad es inquebrantable. Sacúdete el polvo y reconquista tu disciplina.»',
+        '«El camino hacia la cima está forjado por caídas superadas. No permitas que un tropiezo se vuelva hábito.»',
+        '«Respira hondo, Cazador. Reconoce el error, aprende la lección y continúa con la guardia en alto.»'
+      ];
+      const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+
+      sound.speakMotivationalPrompt('Pacto registrado. Un Monarca tropieza pero se levanta de inmediato. ¡Continúa!');
+
       setSystemModal({
         isOpen: true,
-        title: '⚠️ PACTO PROHIBIDO QUEBRANTADO',
-        subtitle: `Has registrado una falta en «${targetPact.title}». El Sistema ha deducido ${hpLoss} HP y ${goldLoss} Oro. Tu racha limpia se ha reiniciado. Mantén la disciplina, Cazador.`,
+        title: '⚠️ PACTO QUEBRANTADO: ¡RESURGE, CAZADOR!',
+        subtitle: `Has registrado una falta en «${targetPact.title}».\n\nPenalización: -${hpLoss} HP | -${goldLoss} Oro (Racha de días limpios reiniciada).\n\n${randomQuote}`,
         type: 'info',
         onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
       });
@@ -652,6 +683,23 @@ const App: React.FC = () => {
 
     setPlayer(updatedPlayer);
     saveStoredPlayer(updatedPlayer);
+  };
+
+  // Manual Force Daily Reset
+  const handleForceDailyReset = () => {
+    sound.playBeep(650, 0.08);
+    forceDailyReset(player, quests, (updatedPlayer, updatedQuests) => {
+      setPlayer(updatedPlayer);
+      setQuests(updatedQuests);
+      addLog('Ciclo diario reiniciado. Misiones restauradas para el nuevo día.', 'quest');
+      setSystemModal({
+        isOpen: true,
+        title: 'CICLO DIARIO REINICIADO',
+        subtitle: 'El Sistema ha regenerado las misiones diarias y restablecido tu estado de energía para el nuevo ciclo.',
+        type: 'info',
+        onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+      });
+    });
   };
 
   // Allocate Stat Point
@@ -1575,6 +1623,7 @@ const App: React.FC = () => {
               onTriggerPactInfraction={handleTriggerPactInfraction}
               onAddCustomPact={handleAddCustomPact}
               onTogglePactActive={handleTogglePactActive}
+              onForceDailyReset={handleForceDailyReset}
             />
           )}
 
