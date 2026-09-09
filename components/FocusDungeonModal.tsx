@@ -97,10 +97,10 @@ export const FocusDungeonModal: React.FC<FocusDungeonModalProps> = ({
   const progressPct = ((totalSeconds - secondsRemaining) / totalSeconds) * 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain touch-pan-y">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
       <div className="fixed inset-0 bg-black/90 backdrop-blur-lg" onClick={isActive ? undefined : onClose}></div>
 
-      <div className="relative w-full max-w-lg bg-surface-dark border-2 border-indigo-500/50 rounded-2xl sm:rounded-3xl shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden my-auto sm:my-6 animate-modal flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-surface-dark border-2 border-indigo-500/50 rounded-2xl sm:rounded-3xl shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden flex flex-col h-[90dvh] sm:h-auto sm:max-h-[90vh] animate-modal">
         {/* Header */}
         <div className="px-4 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border-b border-border-dark flex items-center justify-between gap-3 sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Player, Rank } from '../types';
+import { Player, Rank, GameDifficulty, LifestyleArchetype } from '../types';
 import { AVATAR_CATALOG, FRAME_CATALOG, AvatarMeta, FrameMeta } from './avatars/avatarCatalog';
 import { HunterAvatar } from './avatars/HunterAvatar';
 import { calculateCombatPower } from '../utils/calculator';
@@ -24,7 +24,9 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
   const [autoEvolve, setAutoEvolve] = useState<boolean>(player.autoEvolveAvatar !== false);
   const [hunterName, setHunterName] = useState<string>(player.name);
   const [activeTitle, setActiveTitle] = useState<string>(player.equippedTitle || player.title);
-  const [selectedTab, setSelectedTab] = useState<'evolution' | 'catalog' | 'license' | 'frames'>('evolution');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<GameDifficulty>(player.gameDifficulty || 'hunter');
+  const [selectedArchetype, setSelectedArchetype] = useState<LifestyleArchetype>(player.lifestyleArchetype || 'monarch');
+  const [selectedTab, setSelectedTab] = useState<'evolution' | 'catalog' | 'license' | 'frames' | 'difficulty'>('evolution');
   const [classFilter, setClassFilter] = useState<string>('all');
 
   const combatPower = calculateCombatPower(player);
@@ -38,6 +40,8 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
       autoEvolveAvatar: autoEvolve,
       equippedTitle: activeTitle,
       title: activeTitle,
+      gameDifficulty: selectedDifficulty,
+      lifestyleArchetype: selectedArchetype,
     });
 
     try {
@@ -158,6 +162,21 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
           >
             <span className="material-symbols-outlined text-sm">id_card</span>
             Licencia Holográfica
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playBeep(520, 0.03);
+              setSelectedTab('difficulty');
+            }}
+            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+              selectedTab === 'difficulty'
+                ? 'border-red-500 text-red-400 bg-red-500/10 rounded-t-xl'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">tune</span>
+            Dificultad & Estilo
           </button>
         </div>
 
@@ -552,6 +571,159 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
                 <div className="pt-3 border-t border-white/10 flex justify-between items-center text-[8px] font-mono text-slate-400 relative z-10">
                   <span>AUTORIZADO PARA INCURSIONES EN MAZMORRAS</span>
                   <span className="text-primary font-bold">SHADOW MONARCH SYSTEM</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: Dificultad & Estilo de Vida */}
+          {selectedTab === 'difficulty' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Difficulty Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-400 text-xl">gavel</span>
+                  <h4 className="text-white text-base font-black uppercase tracking-wider font-display">
+                    Nivel de Rigor del Sistema (Dificultad)
+                  </h4>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Define el castigo de HP y multas al caer en malos hábitos o retrasar tus misiones.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    {
+                      id: 'casual',
+                      name: 'Casual / Iniciación',
+                      badge: 'Rango E - C',
+                      color: 'border-emerald-500/50 bg-emerald-950/20 text-emerald-400',
+                      desc: 'Penalizaciones leves (50% daño HP). Ideal para construir hábitos con calma y sin frustración.',
+                      icon: 'spa',
+                    },
+                    {
+                      id: 'hunter',
+                      name: 'Cazador Canónico',
+                      badge: 'Rango B - A',
+                      color: 'border-primary/50 bg-primary/10 text-primary',
+                      desc: 'Castigo estándar (100% daño HP y multas). La experiencia balanceada de Solo Leveling.',
+                      icon: 'swords',
+                    },
+                    {
+                      id: 'monarch',
+                      name: 'Monarca Hardcore',
+                      badge: 'Rango S',
+                      color: 'border-red-600/60 bg-red-950/30 text-red-400',
+                      desc: 'Castigo severo (150% daño HP). Zona de Castigo inmediata si rompes más de 2 pactos.',
+                      icon: 'skull',
+                    },
+                  ].map((diff) => (
+                    <button
+                      key={diff.id}
+                      type="button"
+                      onClick={() => {
+                        sound.playBeep(520, 0.04);
+                        setSelectedDifficulty(diff.id as any);
+                      }}
+                      className={`p-4 rounded-xl border text-left flex flex-col justify-between gap-3 transition-all ${
+                        selectedDifficulty === diff.id
+                          ? `${diff.color} ring-2 ring-white/20 shadow-lg scale-[1.02]`
+                          : 'bg-surface-card border-white/10 hover:border-white/20 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="material-symbols-outlined text-2xl">{diff.icon}</span>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 uppercase">
+                          {diff.badge}
+                        </span>
+                      </div>
+                      <div>
+                        <h5 className="font-black text-sm text-white uppercase">{diff.name}</h5>
+                        <p className="text-slate-400 text-xs mt-1 leading-relaxed">{diff.desc}</p>
+                      </div>
+                      <div className="text-[10px] font-mono font-bold pt-1 text-slate-400">
+                        {selectedDifficulty === diff.id ? '✓ ACTIVO' : 'Seleccionar'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lifestyle Archetype Section */}
+              <div className="space-y-3 pt-4 border-t border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-xl">psychology</span>
+                  <h4 className="text-white text-base font-black uppercase tracking-wider font-display">
+                    Arquetipo de Vida (Objetivo Principal)
+                  </h4>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Adapta las misiones y bonificaciones al área de tu vida que más deseas potenciar hoy.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    {
+                      id: 'guardian',
+                      name: 'Guardián (Salud, Nutrición & Fitness)',
+                      icon: 'fitness_center',
+                      focus: 'Fuerza (STR) & Vitalidad (VIT)',
+                      desc: 'Prioriza entrenamiento, cero refrescos, hidratación, comida limpia y descanso reparador.',
+                      accent: 'text-emerald-400 border-emerald-500/40 bg-emerald-950/20',
+                    },
+                    {
+                      id: 'scholar',
+                      name: 'Erudito (Estudio, Intelecto & Lectura)',
+                      icon: 'auto_stories',
+                      focus: 'Inteligencia (INT) & Sabiduría (WIS)',
+                      desc: 'Prioriza lectura diaria, sesiones de estudio profundo Pomodoro, idiomas y cero distracción digital.',
+                      accent: 'text-blue-400 border-blue-500/40 bg-blue-950/20',
+                    },
+                    {
+                      id: 'shadow',
+                      name: 'Asesino de Sombras (Disciplina & Foco)',
+                      icon: 'bolt',
+                      focus: 'Agilidad (AGI) & Carisma (CHA)',
+                      desc: 'Prioriza levantarse temprano, ejecutar tareas clave del trabajo o proyectos y cero procrastinación.',
+                      accent: 'text-amber-400 border-amber-500/40 bg-amber-950/20',
+                    },
+                    {
+                      id: 'monarch',
+                      name: 'Monarca (Híbrido Integral)',
+                      icon: 'military_tech',
+                      focus: 'Balance en todos los atributos',
+                      desc: 'El camino de Jin-Woo: desarrollo integral y simultáneo de cuerpo, mente, productividad y salud.',
+                      accent: 'text-purple-400 border-purple-500/40 bg-purple-950/20',
+                    },
+                  ].map((arch) => (
+                    <button
+                      key={arch.id}
+                      type="button"
+                      onClick={() => {
+                        sound.playBeep(560, 0.04);
+                        setSelectedArchetype(arch.id as any);
+                      }}
+                      className={`p-4 rounded-xl border text-left flex flex-col justify-between gap-2.5 transition-all ${
+                        selectedArchetype === arch.id
+                          ? `${arch.accent} ring-2 ring-white/20 shadow-lg scale-[1.01]`
+                          : 'bg-surface-card border-white/10 hover:border-white/20 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-xl shrink-0">
+                          <span className="material-symbols-outlined">{arch.icon}</span>
+                        </div>
+                        <div>
+                          <h5 className="font-black text-sm text-white">{arch.name}</h5>
+                          <span className="text-[10px] font-mono text-slate-400 font-bold block">{arch.focus}</span>
+                        </div>
+                      </div>
+                      <p className="text-slate-400 text-xs leading-relaxed">{arch.desc}</p>
+                      <div className="text-[10px] font-mono font-bold text-slate-400 pt-1">
+                        {selectedArchetype === arch.id ? '✓ SELECCIONADO' : 'Elegir Arquetipo'}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

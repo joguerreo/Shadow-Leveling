@@ -301,14 +301,40 @@ export interface MirrorShadow {
   };
 }
 
+export type PactCategory = 'nutrition' | 'health' | 'discipline' | 'mind';
+export type PactSeverity = 'mild' | 'moderate' | 'severe' | 'lethal';
+export type GameDifficulty = 'casual' | 'hunter' | 'monarch';
+export type LifestyleArchetype = 'guardian' | 'scholar' | 'shadow' | 'monarch';
+
+export interface ForbiddenPact {
+  id: string;
+  title: string;
+  codeName: string;
+  description: string;
+  category: PactCategory;
+  severity: PactSeverity;
+  icon: string;
+  hpDamage: number;
+  goldPenalty: number;
+  active: boolean;
+  cleanStreakDays: number;
+  lastInfractionAt: string | null;
+  totalInfractions: number;
+}
+
 export interface Player {
   name: string;
   title: string;
   level: number;
   xp: number;
   maxXp: number;
+  hp?: number;
+  maxHp?: number;
   mp?: number;
   maxMp?: number;
+  gameDifficulty?: GameDifficulty;
+  lifestyleArchetype?: LifestyleArchetype;
+  forbiddenPacts?: ForbiddenPact[];
   rank: Rank;
   gold: number;
   essenceStones: number;

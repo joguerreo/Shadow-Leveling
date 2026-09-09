@@ -1,4 +1,67 @@
-import { Rank, Player, Quest, QuestCategory, Item, Dungeon, ShopItem, ShadowSoldier, ShadowExpedition, ActivityDay, HunterSkill, HunterAchievement, WorldBoss, HunterSaga } from './types';
+import { Rank, Player, Quest, QuestCategory, Item, Dungeon, ShopItem, ShadowSoldier, ShadowExpedition, ActivityDay, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, ForbiddenPact } from './types';
+
+export const INITIAL_FORBIDDEN_PACTS: ForbiddenPact[] = [
+  {
+    id: 'pact_soda',
+    title: 'Líquido Corrosivo: Cero Refresco',
+    codeName: 'PACT-ZERO-SODA',
+    description: 'Prohibición absoluta de ingerir refrescos azucarados o bebidas carbonatadas ultraprocesadas. Solo agua pura o infusiones.',
+    category: 'nutrition',
+    severity: 'severe',
+    icon: 'local_drink',
+    hpDamage: 25,
+    goldPenalty: 50,
+    active: true,
+    cleanStreakDays: 0,
+    lastInfractionAt: null,
+    totalInfractions: 0,
+  },
+  {
+    id: 'pact_junk_food',
+    title: 'Toxinas Sintéticas: Cero Comida Chatarra',
+    codeName: 'PACT-NO-JUNK',
+    description: 'Rechazo a frituras, harinas refinadas ultraprocesadas y comida chatarra. El cuerpo del cazador requiere combustible limpio.',
+    category: 'nutrition',
+    severity: 'severe',
+    icon: 'fastfood',
+    hpDamage: 30,
+    goldPenalty: 75,
+    active: true,
+    cleanStreakDays: 0,
+    lastInfractionAt: null,
+    totalInfractions: 0,
+  },
+  {
+    id: 'pact_doomscroll',
+    title: 'Drenaje Mental: Cero Redes Sin Propósito',
+    codeName: 'PACT-NO-SCROLL',
+    description: 'Bloqueo de navegación inútil (TikTok/Reels/Shorts) o procrastinación digital mayor a 30 minutos sin fin productivo.',
+    category: 'discipline',
+    severity: 'moderate',
+    icon: 'smartphone',
+    hpDamage: 20,
+    goldPenalty: 40,
+    active: true,
+    cleanStreakDays: 0,
+    lastInfractionAt: null,
+    totalInfractions: 0,
+  },
+  {
+    id: 'pact_sleep',
+    title: 'Ruptura del Descanso: Cero Desvelo',
+    codeName: 'PACT-SLEEP-SANCTUARY',
+    description: 'Ir a dormir antes de las 23:30. Dormir menos de 7 horas degrada la regeneración pasiva y expone al cazador a debuffs.',
+    category: 'health',
+    severity: 'severe',
+    icon: 'bedtime',
+    hpDamage: 35,
+    goldPenalty: 100,
+    active: true,
+    cleanStreakDays: 0,
+    lastInfractionAt: null,
+    totalInfractions: 0,
+  },
+];
 
 export const INITIAL_ITEMS: Item[] = [
   {
@@ -98,7 +161,12 @@ export const INITIAL_PLAYER: Player = {
   ],
   avatarId: 'monarch-shadow',
   avatarFrame: 'frame-e',
-  hunterClass: 'Monarca'
+  hunterClass: 'Monarca',
+  hp: 100,
+  maxHp: 100,
+  gameDifficulty: 'hunter',
+  lifestyleArchetype: 'monarch',
+  forbiddenPacts: INITIAL_FORBIDDEN_PACTS
 };
 
 export const INITIAL_QUESTS: Quest[] = [

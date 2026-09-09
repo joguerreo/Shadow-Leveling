@@ -153,12 +153,13 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
 
               {/* Attributes Mini-Bar */}
               <div className="grid grid-cols-6 gap-1 pt-1 text-center font-mono">
-                {Object.entries(player.attributes).map(([key, attr]) => {
-                  const attribute = attr as Attribute;
+                {(['str', 'int', 'vit', 'agi', 'wis', 'cha'] as const).map((key) => {
+                  const rawAttr = player.attributes?.[key] || (player.attributes as any)?.[key.toUpperCase()];
+                  const val = typeof rawAttr === 'number' ? rawAttr : (Number(rawAttr?.value) || 10);
                   return (
-                    <div key={key} className="p-1.5 bg-surface-card rounded-lg border border-white/5">
+                    <div key={key} className="p-1.5 bg-[#161b22] rounded-lg border border-white/10">
                       <span className="text-[8px] text-slate-400 block font-bold uppercase">{key}</span>
-                      <span className="text-[11px] font-black text-white">{attribute.value}</span>
+                      <span className="text-[11px] font-black text-white">{val}</span>
                     </div>
                   );
                 })}

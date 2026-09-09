@@ -41,7 +41,7 @@ const DungeonList: React.FC<DungeonListProps> = ({
     if (activeDungeon && isRunning) {
       const mins = Math.floor(timerSeconds / 60);
       const secs = timerSeconds % 60;
-      document.title = `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}] ${activeDungeon.name || activeDungeon.title} - Solo Leveling`;
+      document.title = `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}] ${activeDungeon.title} - Solo Leveling`;
     } else {
       document.title = 'System: Shadow Leveling';
     }
@@ -116,12 +116,12 @@ const DungeonList: React.FC<DungeonListProps> = ({
     const dungeon = dungeons.find((d) => d.id === activeDungeonId);
     if (dungeon) {
       sound.playRaidVictory();
-      sound.speakSystemVoice(`¡Mazmorra purificada! Has superado la instancia ${dungeon.name || dungeon.title}.`);
+      sound.speakSystemVoice(`¡Mazmorra purificada! Has superado la instancia ${dungeon.title}.`);
 
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
           new Notification('¡Mazmorra Purificada!', {
-            body: `Has completado exitosamente la instancia: ${dungeon.name || dungeon.title}. Recompensas asignadas.`,
+            body: `Has completado exitosamente la instancia: ${dungeon.title}. Recompensas asignadas.`,
             icon: '/icon.png',
           });
         } catch {
@@ -227,7 +227,7 @@ const DungeonList: React.FC<DungeonListProps> = ({
                 </span>
               </div>
               <h3 className="text-white text-2xl md:text-4xl font-black uppercase italic font-display">
-                {activeDungeon.title || activeDungeon.name}
+                {activeDungeon.title}
               </h3>
               <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
                 {activeDungeon.description}
@@ -372,7 +372,7 @@ const DungeonList: React.FC<DungeonListProps> = ({
               {/* Title & Description */}
               <div className="space-y-2 mb-6">
                 <h3 className="text-white text-lg font-black uppercase italic font-display">
-                  {dungeon.name || dungeon.title}
+                  {dungeon.title}
                 </h3>
                 <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
                   {dungeon.description}

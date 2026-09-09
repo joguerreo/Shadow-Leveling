@@ -1,5 +1,5 @@
-import { Player, Rank } from '../types';
-import { INITIAL_PLAYER, INITIAL_SHADOW_ARMY, INITIAL_ACTIVITY_HISTORY } from '../constants';
+import { Player, Rank, ForbiddenPact } from '../types';
+import { INITIAL_PLAYER, INITIAL_SHADOW_ARMY, INITIAL_ACTIVITY_HISTORY, INITIAL_FORBIDDEN_PACTS } from '../constants';
 
 /**
  * Ensures player data is 100% structurally complete and valid,
@@ -11,22 +11,40 @@ export function sanitizePlayerData(raw: any): Player {
   }
 
   const baseAttrs = INITIAL_PLAYER.attributes;
-  const rawAttrs = raw.attributes || {};
+  
+  let rawAttrs = raw.attributes;
+  if (typeof rawAttrs === 'string') {
+    try {
+      rawAttrs = JSON.parse(rawAttrs);
+    } catch {
+      rawAttrs = {};
+    }
+  }
+  rawAttrs = rawAttrs && typeof rawAttrs === 'object' ? rawAttrs : {};
 
   const cleanAttr = (key: keyof typeof baseAttrs) => {
-    const rawVal = rawAttrs[key];
+    const upperKey = key.toUpperCase();
+    const rawVal = rawAttrs[key] !== undefined ? rawAttrs[key] : rawAttrs[upperKey];
     const base = baseAttrs[key];
-    const numVal = typeof rawVal === 'number' 
-      ? rawVal 
-      : (typeof rawVal?.value === 'number' ? rawVal.value : base.value);
+
+    let numVal = base.value;
+    if (typeof rawVal === 'number' && !isNaN(rawVal)) {
+      numVal = rawVal;
+    } else if (typeof rawVal === 'string' && !isNaN(Number(rawVal))) {
+      numVal = Number(rawVal);
+    } else if (typeof rawVal?.value === 'number' && !isNaN(rawVal.value)) {
+      numVal = rawVal.value;
+    } else if (typeof rawVal?.value === 'string' && !isNaN(Number(rawVal.value))) {
+      numVal = Number(rawVal.value);
+    }
 
     return {
-      name: rawVal?.name || base.name,
-      code: rawVal?.code || base.code,
+      name: (typeof rawVal === 'object' && rawVal?.name) || base.name,
+      code: (typeof rawVal === 'object' && rawVal?.code) || base.code,
       value: Math.max(1, Math.round(numVal)),
-      icon: rawVal?.icon || base.icon,
-      color: rawVal?.color || base.color,
-      bonusText: rawVal?.bonusText || base.bonusText,
+      icon: (typeof rawVal === 'object' && rawVal?.icon) || base.icon,
+      color: (typeof rawVal === 'object' && rawVal?.color) || base.color,
+      bonusText: (typeof rawVal === 'object' && rawVal?.bonusText) || base.bonusText,
     };
   };
 
@@ -65,8 +83,22 @@ export function sanitizePlayerData(raw: any): Player {
     gold: Math.max(0, Number(raw.gold) || 0),
     essenceStones: Math.max(0, Number(raw.essenceStones || raw.essence_stones) || 0),
     statPoints: Math.max(0, Number(raw.statPoints || raw.stat_points) || 0),
+    hp: Math.min(
+      Math.max(50, Number(raw.maxHp || raw.max_hp) || 100),
+      Math.max(0, Number(raw.hp !== undefined ? raw.hp : (raw.maxHp || raw.max_hp || 100)))
+    ),
+    maxHp: Math.max(50, Number(raw.maxHp || raw.max_hp) || 100),
     mp: Math.max(0, Number(raw.mp) || 300),
     maxMp: Math.max(100, Number(raw.maxMp || raw.max_mp) || 300),
+    gameDifficulty: (['casual', 'hunter', 'monarch'].includes(raw.gameDifficulty || raw.game_difficulty)
+      ? (raw.gameDifficulty || raw.game_difficulty)
+      : 'hunter') as any,
+    lifestyleArchetype: (['guardian', 'scholar', 'shadow', 'monarch'].includes(raw.lifestyleArchetype || raw.lifestyle_archetype)
+      ? (raw.lifestyleArchetype || raw.lifestyle_archetype)
+      : 'monarch') as any,
+    forbiddenPacts: Array.isArray(raw.forbiddenPacts) && raw.forbiddenPacts.length > 0
+      ? raw.forbiddenPacts
+      : (Array.isArray(raw.forbidden_pacts) && raw.forbidden_pacts.length > 0 ? raw.forbidden_pacts : INITIAL_FORBIDDEN_PACTS),
     streakDays: Math.max(0, Number(raw.streakDays || raw.streak_days) || 0),
     soundEnabled: raw.soundEnabled ?? raw.sound_enabled ?? true,
     avatarId: raw.avatarId || raw.avatar_id || 'monarch-shadow',

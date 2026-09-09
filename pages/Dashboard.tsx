@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Player, Quest, QuestCategory, SystemLog, Attribute } from '../types';
+import { Player, Quest, QuestCategory, SystemLog, Attribute, ForbiddenPact } from '../types';
 import { calculateCombatPower, getEffectiveAttributes } from '../utils/calculator';
 import { sound } from '../utils/sound';
 import OracleEvaluationModal from '../components/OracleEvaluationModal';
 import { HunterAvatar } from '../components/avatars/HunterAvatar';
 import { resolvePlayerAvatar } from '../utils/avatarEvolution';
+import ForbiddenPactsSection from '../components/ForbiddenPactsSection';
 
 interface DashboardProps {
   player: Player;
@@ -24,7 +25,21 @@ interface DashboardProps {
   onOpenFocusModal?: () => void;
   onOpenMirrorModal?: () => void;
   onOpenLicenseModal?: () => void;
+  onAddRandomQuest?: () => void;
+  onAddBalancedRoutine?: () => void;
+  onTriggerPactInfraction?: (pactId: string) => void;
+  onAddCustomPact?: (pact: Omit<ForbiddenPact, 'id' | 'cleanStreakDays' | 'lastInfractionAt' | 'totalInfractions'>) => void;
+  onTogglePactActive?: (pactId: string) => void;
 }
+
+const ATTR_METADATA_FALLBACK: Record<'str' | 'int' | 'vit' | 'agi' | 'wis' | 'cha', { name: string; code: string; icon: string; color: string; bonusText: string }> = {
+  str: { name: 'Fuerza', code: 'STR', icon: 'fitness_center', color: 'text-red-500', bonusText: '+2.0% Potencia física' },
+  int: { name: 'Inteligencia', code: 'INT', icon: 'psychology', color: 'text-blue-400', bonusText: '+2.0% Capacidad cognitiva' },
+  vit: { name: 'Vitalidad', code: 'VIT', icon: 'favorite', color: 'text-emerald-400', bonusText: '+15 HP Máx / +1% Resistencia' },
+  agi: { name: 'Agilidad', code: 'AGI', icon: 'speed', color: 'text-amber-400', bonusText: '+1.5% Velocidad de ejecución' },
+  wis: { name: 'Sabiduría', code: 'WIS', icon: 'auto_awesome', color: 'text-purple-400', bonusText: '+10 MP Máx / Enfoque' },
+  cha: { name: 'Carisma', code: 'CHA', icon: 'military_tech', color: 'text-yellow-400', bonusText: '+2% Autoridad y Liderazgo' },
+};
 
 const Dashboard: React.FC<DashboardProps> = ({
   player,
@@ -44,6 +59,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenFocusModal,
   onOpenMirrorModal,
   onOpenLicenseModal,
+  onAddRandomQuest,
+  onAddBalancedRoutine,
+  onTriggerPactInfraction,
+  onAddCustomPact,
+  onTogglePactActive,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,6 +74,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const combatPower = calculateCombatPower(player);
   const { avatarId: activeAvatarId, frameId: activeFrameId, currentStage: evolutionStage } = resolvePlayerAvatar(player);
 
+  const currentHp = player.hp ?? 100;
+  const maxHp = player.maxHp ?? 100;
   const currentMp = player.mp ?? 300;
   const maxMp = player.maxMp ?? 300;
 
@@ -159,13 +181,29 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <h2 className="text-white text-3xl sm:text-4xl md:text-5xl font-black italic tracking-tighter text-glow font-display break-all sm:break-normal">
                   {player.name}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-primary text-base sm:text-xl font-black uppercase tracking-widest font-mono">
                     LVL {player.level}
                   </span>
                   <span className="text-accent text-base sm:text-xl font-black uppercase tracking-widest font-mono">
                     [{player.rank}]
                   </span>
+
+                  {/* Difficulty & Lifestyle Archetype Pill */}
+                  <button
+                    onClick={onOpenProfileModal}
+                    className="px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 text-red-300 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                    title="Configurar Dificultad y Arquetipo de Vida en tu Perfil"
+                  >
+                    <span className="material-symbols-outlined text-xs text-red-400">tune</span>
+                    <span className="uppercase font-black tracking-wider">
+                      {player.gameDifficulty === 'casual' ? 'Casual' : player.gameDifficulty === 'monarch' ? 'Monarca' : 'Cazador'}
+                    </span>
+                    <span className="text-slate-500">|</span>
+                    <span className="text-slate-300">
+                      {player.lifestyleArchetype === 'guardian' ? '🛡️ Guardián' : player.lifestyleArchetype === 'scholar' ? '🧠 Erudito' : player.lifestyleArchetype === 'shadow' ? '⚡ Sombra' : '👑 Monarca'}
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -183,19 +221,19 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* XP & MP Bars */}
-          <div className="w-full lg:w-2/5 flex flex-col gap-3">
+          {/* XP, HP & MP Bars */}
+          <div className="w-full lg:w-2/5 flex flex-col gap-2.5">
             {/* XP Bar */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <div className="flex justify-between items-end">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                   PROGRESO DE XP
                 </span>
-                <span className="text-primary text-xs font-black font-mono italic">
+                <span className="text-primary text-[11px] font-black font-mono italic">
                   {player.xp} / {player.maxXp} XP ({Math.round((player.xp / player.maxXp) * 100)}%)
                 </span>
               </div>
-              <div className="h-3.5 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+              <div className="h-3 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
                 <div
                   className="h-full rounded-full xp-gradient system-glow transition-all duration-700 ease-out"
                   style={{ width: `${Math.min(100, (player.xp / player.maxXp) * 100)}%` }}
@@ -203,18 +241,41 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* MP Bar */}
-            <div className="flex flex-col gap-1.5">
+            {/* HP Bar (Salud / Castigo de Pactos) */}
+            <div className="flex flex-col gap-1">
               <div className="flex justify-between items-end">
-                <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">bolt</span>
-                  Puntos de Maná (MP)
+                <span className="text-[11px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs text-red-500">favorite</span>
+                  Puntos de Salud (HP)
                 </span>
-                <span className="text-indigo-400 text-xs font-black font-mono">
-                  {currentMp} / {maxMp} MP
+                <span className={`text-[11px] font-black font-mono ${currentHp <= 25 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                  {currentHp} / {maxHp} HP
                 </span>
               </div>
               <div className="h-2.5 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    currentHp <= 25
+                      ? 'bg-gradient-to-r from-red-600 to-rose-500 shadow-sm shadow-red-500/50 animate-pulse'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-sm shadow-emerald-500/50'
+                  }`}
+                  style={{ width: `${Math.min(100, (currentHp / maxHp) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* MP Bar */}
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between items-end">
+                <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs">bolt</span>
+                  Puntos de Maná (MP)
+                </span>
+                <span className="text-indigo-400 text-[11px] font-black font-mono">
+                  {currentMp} / {maxMp} MP
+                </span>
+              </div>
+              <div className="h-2 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-400 shadow-sm shadow-indigo-500/50 transition-all duration-500"
                   style={{ width: `${Math.min(100, (currentMp / maxMp) * 100)}%` }}
@@ -243,27 +304,34 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {(Object.keys(player.attributes) as Array<keyof typeof player.attributes>).map((attrKey) => {
-              const attr = player.attributes[attrKey];
-              const totalVal = effectiveStats[attrKey];
-              const gearBonus = totalVal - attr.value;
+            {(['str', 'int', 'vit', 'agi', 'wis', 'cha'] as const).map((attrKey) => {
+              const meta = ATTR_METADATA_FALLBACK[attrKey];
+              const attrRaw = player.attributes?.[attrKey] || (player.attributes as any)?.[attrKey.toUpperCase()];
+              const baseVal = typeof attrRaw === 'number' ? attrRaw : (Number(attrRaw?.value) || 10);
+              const totalVal = effectiveStats?.[attrKey] ?? baseVal;
+              const gearBonus = Math.max(0, totalVal - baseVal);
+              const attrName = (typeof attrRaw === 'object' && attrRaw?.name) || meta.name;
+              const attrCode = (typeof attrRaw === 'object' && attrRaw?.code) || meta.code;
+              const attrIcon = (typeof attrRaw === 'object' && attrRaw?.icon) || meta.icon;
+              const attrColor = (typeof attrRaw === 'object' && attrRaw?.color) || meta.color;
+              const attrBonusText = (typeof attrRaw === 'object' && attrRaw?.bonusText) || meta.bonusText;
 
               return (
                 <div
                   key={attrKey}
-                  className="bg-surface-dark border border-border-dark hover:border-primary/40 rounded-xl p-4 transition-all duration-300 flex flex-col justify-between gap-3 group"
+                  className="bg-[#161b22] border border-[#30363d] hover:border-primary/50 rounded-xl p-4 transition-all duration-300 flex flex-col justify-between gap-3 group shadow-md"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-xl ${attr.color}`}>
-                        {attr.icon}
+                      <span className={`material-symbols-outlined text-xl ${attrColor}`}>
+                        {attrIcon}
                       </span>
-                      <span className="text-xs font-black tracking-wider text-slate-300 uppercase">
-                        {attr.name}
+                      <span className="text-xs font-black tracking-wider text-slate-200 uppercase">
+                        {attrName}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-primary transition-colors">
-                      [{attr.code}]
+                    <span className="text-[10px] font-mono font-bold text-slate-400 group-hover:text-primary transition-colors">
+                      [{attrCode}]
                     </span>
                   </div>
 
@@ -281,7 +349,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <button
                         onClick={() => onAllocateStat(attrKey)}
                         className="size-7 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md shadow-emerald-500/30"
-                        title={`Asignar 1 punto a ${attr.name}`}
+                        title={`Asignar 1 punto a ${attrName}`}
                       >
                         <span className="material-symbols-outlined text-sm">add</span>
                       </button>
@@ -289,7 +357,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
 
                   <p className="text-slate-400 text-[10px] font-medium leading-tight">
-                    {attr.bonusText}
+                    {attrBonusText}
                   </p>
                 </div>
               );
@@ -377,120 +445,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Elite Ascension Modules Hub */}
-      <section className="bg-gradient-to-r from-surface-dark via-slate-900 to-surface-dark border border-border-dark rounded-2xl p-5 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/5 pb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-xl">hotel_class</span>
-            <div>
-              <h3 className="text-white text-sm font-black uppercase tracking-wider italic font-display">
-                Módulos de Ascensión y Hábitos de Largo Plazo
-              </h3>
-              <p className="text-slate-400 text-xs">Herramientas avanzadas para la reconfiguración neuronal y disciplina</p>
-            </div>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/40 text-[10px] font-mono font-black uppercase">
-            Protocolos de Élite
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* Sagas 21/60/90 Days */}
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenSagasModal?.();
-            }}
-            className="p-3.5 bg-gradient-to-br from-blue-950/40 to-surface-card hover:from-blue-900/60 hover:to-indigo-950/60 border border-blue-500/30 hover:border-blue-400 rounded-xl flex flex-col items-center text-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-          >
-            <div className="size-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-xl">auto_stories</span>
-            </div>
-            <div>
-              <span className="text-white font-bold text-xs block group-hover:text-blue-300 transition-colors">
-                Arcos & Sagas
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">21 / 60 / 90 Días</span>
-            </div>
-          </button>
-
-          {/* Weekly Audit by IA */}
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenWeeklyAuditModal?.();
-            }}
-            className="p-3.5 bg-gradient-to-br from-indigo-950/40 to-surface-card hover:from-indigo-900/60 hover:to-purple-950/60 border border-indigo-500/30 hover:border-indigo-400 rounded-xl flex flex-col items-center text-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-          >
-            <div className="size-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-xl">verified_user</span>
-            </div>
-            <div>
-              <span className="text-white font-bold text-xs block group-hover:text-indigo-300 transition-colors">
-                Auditoría IA
-              </span>
-              <span className="text-[10px] font-mono text-indigo-300">Asociación Oficial</span>
-            </div>
-          </button>
-
-          {/* Focus Pomodoro Dungeon */}
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenFocusModal?.();
-            }}
-            className="p-3.5 bg-gradient-to-br from-purple-950/40 to-surface-card hover:from-purple-900/60 hover:to-fuchsia-950/60 border border-purple-500/30 hover:border-purple-400 rounded-xl flex flex-col items-center text-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-          >
-            <div className="size-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-xl">hourglass_bottom</span>
-            </div>
-            <div>
-              <span className="text-white font-bold text-xs block group-hover:text-purple-300 transition-colors">
-                Modo Enfoque
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">Timer Pomodoro MP</span>
-            </div>
-          </button>
-
-          {/* Mirror Shadow Duel */}
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenMirrorModal?.();
-            }}
-            className="p-3.5 bg-gradient-to-br from-rose-950/40 to-surface-card hover:from-rose-900/60 hover:to-red-950/60 border border-rose-500/30 hover:border-rose-400 rounded-xl flex flex-col items-center text-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-          >
-            <div className="size-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-xl">theater_comedy</span>
-            </div>
-            <div>
-              <span className="text-white font-bold text-xs block group-hover:text-rose-300 transition-colors">
-                Sombra Reflejo
-              </span>
-              <span className="text-[10px] font-mono text-rose-400">Duelo Vs Ayer</span>
-            </div>
-          </button>
-
-          {/* Hunter License Card */}
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenLicenseModal?.();
-            }}
-            className="col-span-2 sm:col-span-1 p-3.5 bg-gradient-to-br from-amber-950/40 to-surface-card hover:from-amber-900/60 hover:to-yellow-950/60 border border-amber-500/30 hover:border-amber-400 rounded-xl flex flex-col items-center text-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-          >
-            <div className="size-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-xl">badge</span>
-            </div>
-            <div>
-              <span className="text-white font-bold text-xs block group-hover:text-amber-300 transition-colors">
-                Credencial
-              </span>
-              <span className="text-[10px] font-mono text-amber-400">Licencia de Cazador</span>
-            </div>
-          </button>
-        </div>
-      </section>
+      {/* Sistema Disciplinario: Pactos Prohibidos (Anti-Hábitos) */}
+      <ForbiddenPactsSection
+        player={player}
+        pacts={player.forbiddenPacts || []}
+        onTriggerInfraction={(pactId) => {
+          onTriggerPactInfraction?.(pactId);
+        }}
+        onAddCustomPact={onAddCustomPact}
+        onTogglePactActive={onTogglePactActive}
+        onOpenPenaltyModal={onOpenPenaltyModal}
+      />
 
       {/* Quests Section */}
       <section className="space-y-4">
@@ -506,22 +471,53 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onAddRandomQuest && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playBeep(620, 0.04);
+                  onAddRandomQuest();
+                }}
+                className="px-3 py-2 bg-[#1b2234] hover:bg-[#25304a] border border-blue-500/30 hover:border-blue-400 text-blue-300 hover:text-white text-xs font-mono font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-black/40"
+                title="Generar 1 misión diaria aleatoria del catálogo variado"
+              >
+                <span className="material-symbols-outlined text-sm text-blue-400">casino</span>
+                <span>🎲 Random</span>
+              </button>
+            )}
+
+            {onAddBalancedRoutine && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playBeep(680, 0.05);
+                  onAddBalancedRoutine();
+                }}
+                className="px-3 py-2 bg-[#211b34] hover:bg-[#30254c] border border-purple-500/30 hover:border-purple-400 text-purple-300 hover:text-white text-xs font-mono font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-black/40"
+                title="Cargar una rutina balanceada de 4 misiones aleatorias variadas"
+              >
+                <span className="material-symbols-outlined text-sm text-purple-400">bolt</span>
+                <span>⚡ Rutina 4X</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 sound.playBeep(450, 0.08);
                 onOpenEmergencyModal?.();
               }}
-              className="px-4 py-2.5 bg-red-950/60 hover:bg-red-900/80 border border-red-600/50 text-red-300 hover:text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-red-950/40"
+              className="px-3.5 py-2 bg-red-950/60 hover:bg-red-900/80 border border-red-600/50 text-red-300 hover:text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-red-950/40"
             >
               <span className="material-symbols-outlined text-sm text-red-400 animate-pulse">crisis_alert</span>
-              Puerta Roja IA
+              Puerta Roja
             </button>
+
             <button
               onClick={onOpenQuestModal}
-              className="px-5 py-2.5 bg-gradient-to-r from-primary to-accent hover:from-primary hover:to-primary text-white text-xs font-black uppercase tracking-wider rounded-xl system-glow flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/30"
+              className="px-4 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary hover:to-primary text-white text-xs font-black uppercase tracking-wider rounded-xl system-glow flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/30"
             >
-              <span className="material-symbols-outlined text-sm">auto_awesome</span>
-              Crear Misión con IA
+              <span className="material-symbols-outlined text-sm">auto_stories</span>
+              Misiones / Catálogo
             </button>
           </div>
         </div>
@@ -705,8 +701,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Actions (Delete, Claim) */}
-                  <div className="flex items-center justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/5">
+                  {/* Actions (Delete, Focus, Claim) */}
+                  <div className="flex items-center justify-end gap-2 sm:gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/5">
+                    {onOpenFocusModal && !quest.completed && (
+                      <button
+                        onClick={() => {
+                          sound.playBeep(600, 0.04);
+                          onOpenFocusModal();
+                        }}
+                        className="px-2.5 py-1.5 bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 rounded-lg text-purple-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+                        title="Iniciar Mazmorra de Enfoque Pomodoro para esta tarea"
+                      >
+                        <span className="material-symbols-outlined text-sm">timer</span>
+                        <span className="hidden sm:inline">Enfoque</span>
+                      </button>
+                    )}
+
                     {quest.completed ? (
                       <span className="text-xs font-black text-emerald-400 uppercase italic flex items-center gap-1">
                         <span className="material-symbols-outlined text-sm">check_circle</span>
@@ -715,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     ) : (
                       <button
                         onClick={() => onCompleteQuest(quest.id)}
-                        className="px-4 py-2 bg-primary hover:bg-accent text-white text-xs font-black uppercase rounded-lg transition-all system-glow"
+                        className="px-4 py-2 bg-primary hover:bg-accent text-white text-xs font-black uppercase rounded-lg transition-all system-glow min-h-[38px] active:scale-95"
                       >
                         Completar
                       </button>

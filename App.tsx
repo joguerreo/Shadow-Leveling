@@ -36,7 +36,7 @@ import {
   isSupabaseConfigured
 } from './utils/supabase';
 
-import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport } from './types';
+import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport, ForbiddenPact } from './types';
 import {
   loadStoredPlayer,
   saveStoredPlayer,
@@ -63,6 +63,8 @@ import {
 import { INITIAL_PLAYER, INITIAL_QUESTS, INITIAL_DUNGEONS, INITIAL_SHADOW_EXPEDITIONS, INITIAL_SKILLS, INITIAL_ACHIEVEMENTS, INITIAL_WORLD_BOSSES } from './constants';
 import { getRankFromLevel, getTitleFromLevel } from './utils/calculator';
 import { sound } from './utils/sound';
+import { getRandomDailyQuests } from './utils/dailyQuestCatalog';
+import { sanitizePlayerData } from './utils/playerSanitizer';
 import confetti from 'canvas-confetti';
 type Page = 'dashboard' | 'dungeons' | 'inventory' | 'shop' | 'shadows' | 'skills' | 'bosses' | 'analytics';
 
@@ -113,7 +115,7 @@ const App: React.FC = () => {
 
           if (cloudData && cloudData.player && Object.keys(cloudData.player).length > 0) {
             setPlayer((prev) => {
-              const merged = { ...prev, ...cloudData.player };
+              const merged = sanitizePlayerData({ ...prev, ...cloudData.player });
               saveStoredPlayer(merged);
               return merged;
             });
@@ -145,6 +147,7 @@ const App: React.FC = () => {
 
             setAwakened(true);
             saveIsAwakened(true);
+            setCurrentPage('dashboard');
             addLog(`Progreso total (100%) recuperado de la base de datos para ${user.email}.`, 'system');
           } else {
             // First time this user logs in: sync local state to Supabase completely
@@ -158,6 +161,9 @@ const App: React.FC = () => {
               bosses,
               sagas,
             });
+            setAwakened(true);
+            saveIsAwakened(true);
+            setCurrentPage('dashboard');
             addLog('Perfil y todos los elementos registrados en la nube de Supabase.', 'system');
           }
 
@@ -167,6 +173,9 @@ const App: React.FC = () => {
           }
         } catch (err) {
           console.warn('Initial Supabase sync check:', err);
+          setAwakened(true);
+          saveIsAwakened(true);
+          setCurrentPage('dashboard');
         } finally {
           setIsSyncing(false);
         }
@@ -360,10 +369,38 @@ const App: React.FC = () => {
     sound.playQuestComplete();
     sound.speakSystemVoice(`Misión cumplida: ${targetQuest.title}.`);
 
-    const xpEarned = targetQuest.rewards.xp;
-    const goldEarned = targetQuest.rewards.gold;
+    // Dificultad del juego (Casual / Cazador / Monarca)
+    const difficultyMult = player.gameDifficulty === 'casual' ? 1.25 : player.gameDifficulty === 'monarch' ? 1.5 : 1.0;
+
+    // Afinidades de Arquetipo de Estilo de Vida
+    let archetypeBonusXp = 0;
+    let archetypeBonusHp = 10; // Recuperación vital basal por cumplir objetivos
+    let archetypeBonusMp = 10;
+
+    if (player.lifestyleArchetype === 'guardian' && targetQuest.category === 'fitness') {
+      archetypeBonusXp = Math.round(targetQuest.rewards.xp * 0.25);
+      archetypeBonusHp = 25; // Bonificación de vitalidad extra para guardianes del ejercicio
+    } else if (player.lifestyleArchetype === 'scholar' && targetQuest.category === 'intellect') {
+      archetypeBonusXp = Math.round(targetQuest.rewards.xp * 0.25);
+      archetypeBonusMp = 30; // Regeneración de maná para eruditos del estudio
+    } else if (player.lifestyleArchetype === 'shadow' && (targetQuest.category === 'mindfulness' || targetQuest.category === 'discipline')) {
+      archetypeBonusXp = Math.round(targetQuest.rewards.xp * 0.25);
+    } else if (player.lifestyleArchetype === 'monarch') {
+      archetypeBonusXp = Math.round(targetQuest.rewards.xp * 0.15);
+    }
+
+    const xpEarned = Math.round((targetQuest.rewards.xp * difficultyMult) + archetypeBonusXp);
+    const goldEarned = Math.round(targetQuest.rewards.gold * difficultyMult);
     const essenceEarned = targetQuest.rewards.essenceStones || 0;
     const statPtsEarned = targetQuest.rewards.statPoints || 0;
+
+    const maxHp = player.maxHp ?? 100;
+    const currentHp = player.hp ?? 100;
+    const newHp = Math.min(maxHp, currentHp + archetypeBonusHp);
+
+    const maxMp = player.maxMp ?? 300;
+    const currentMp = player.mp ?? 300;
+    const newMp = Math.min(maxMp, currentMp + archetypeBonusMp);
 
     const updatedQuests = quests.map((q) => {
       if (q.id === id) {
@@ -379,6 +416,8 @@ const App: React.FC = () => {
 
     const updatedPlayer: Player = {
       ...player,
+      hp: newHp,
+      mp: newMp,
       xp: player.xp + xpEarned,
       gold: player.gold + goldEarned,
       essenceStones: player.essenceStones + essenceEarned,
@@ -478,6 +517,141 @@ const App: React.FC = () => {
       deleteQuestFromSupabase(currentUser.id, id).catch(() => {});
     }
     addLog(`Misión eliminada del protocolo de cazador.`, 'quest');
+  };
+
+  // Quick Add 1 Random Daily Quest from diverse catalog
+  const handleQuickAddRandomQuest = () => {
+    const existingTitles = quests.map((q) => q.title);
+    const [template] = getRandomDailyQuests(1, player.level, existingTitles);
+    if (template) {
+      const newQuest: Quest = {
+        ...template,
+        id: `q_cat_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        completed: false,
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [newQuest, ...quests];
+      setQuests(updated);
+      saveStoredQuests(updated);
+      sound.playQuestAccept();
+      addLog(`Misión diaria aleatoria asignada: "${newQuest.title}".`, 'quest');
+    }
+  };
+
+  // Quick Add Balanced 4-Quest Routine from diverse catalog
+  const handleQuickAddBalancedRoutine = () => {
+    const existingTitles = quests.map((q) => q.title);
+    const templates = getRandomDailyQuests(4, player.level, existingTitles);
+    if (templates.length > 0) {
+      const newQuests: Quest[] = templates.map((t, idx) => ({
+        ...t,
+        id: `q_cat_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
+        completed: false,
+        createdAt: new Date().toISOString(),
+      }));
+      const updated = [...newQuests, ...quests];
+      setQuests(updated);
+      saveStoredQuests(updated);
+      sound.playAwakening();
+      addLog(`Rutina diaria balanceada asignada (${newQuests.length} misiones del catálogo variado).`, 'quest');
+    }
+  };
+
+  // Pactos Prohibidos (Anti-Hábitos) Handlers
+  const handleTriggerPactInfraction = (pactId: string) => {
+    sound.playPactViolation();
+    const targetPact = (player.forbiddenPacts || []).find((p) => p.id === pactId);
+    if (!targetPact) return;
+
+    const multiplier = player.gameDifficulty === 'casual' ? 0.5 : player.gameDifficulty === 'monarch' ? 1.5 : 1.0;
+    const hpLoss = Math.round(targetPact.hpDamage * multiplier);
+    const goldLoss = Math.round(targetPact.goldPenalty * multiplier);
+
+    const currentHp = player.hp ?? 100;
+    const nextHp = Math.max(0, currentHp - hpLoss);
+    const nextGold = Math.max(0, player.gold - goldLoss);
+
+    const updatedPacts = (player.forbiddenPacts || []).map((p) => {
+      if (p.id === pactId) {
+        return {
+          ...p,
+          totalInfractions: (p.totalInfractions || 0) + 1,
+          cleanStreakDays: 0,
+          lastInfractionAt: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+
+    const updatedPlayer: Player = {
+      ...player,
+      hp: nextHp,
+      gold: nextGold,
+      forbiddenPacts: updatedPacts,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+
+    addLog(`[PACTO ROTO] Falta en «${targetPact.title}». Consecuencia: -${hpLoss} HP, -${goldLoss} Oro.`, 'penalty');
+
+    if (nextHp <= 0) {
+      sound.playPenaltyWarning();
+      setSystemModal({
+        isOpen: true,
+        title: '¡SALUD AGOTADA: ZONA DE CASTIGO INMINENTE!',
+        subtitle: `Tus puntos de salud han llegado a 0 tras romper tus pactos prohibidos. Para restaurar tu HP al 100%, el Sistema exige que completes el entrenamiento físico de supervivencia en la Zona de Castigo.`,
+        type: 'penalty_warning',
+        onClose: () => {
+          setSystemModal((prev) => ({ ...prev, isOpen: false }));
+          setIsPenaltyModalOpen(true);
+        },
+      });
+    } else {
+      setSystemModal({
+        isOpen: true,
+        title: '⚠️ PACTO PROHIBIDO QUEBRANTADO',
+        subtitle: `Has registrado una falta en «${targetPact.title}». El Sistema ha deducido ${hpLoss} HP y ${goldLoss} Oro. Tu racha limpia se ha reiniciado. Mantén la disciplina, Cazador.`,
+        type: 'info',
+        onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+      });
+    }
+  };
+
+  const handleAddCustomPact = (pactData: Omit<ForbiddenPact, 'id' | 'cleanStreakDays' | 'lastInfractionAt' | 'totalInfractions'>) => {
+    sound.playBeep(640, 0.06);
+    const newPact: ForbiddenPact = {
+      ...pactData,
+      id: `pact_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      cleanStreakDays: 0,
+      totalInfractions: 0,
+      lastInfractionAt: null,
+    };
+
+    const updatedPacts = [...(player.forbiddenPacts || []), newPact];
+    const updatedPlayer: Player = {
+      ...player,
+      forbiddenPacts: updatedPacts,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+    addLog(`Nuevo Pacto Prohibido sellado: «${newPact.title}».`, 'quest');
+  };
+
+  const handleTogglePactActive = (pactId: string) => {
+    sound.playBeep(480, 0.04);
+    const updatedPacts = (player.forbiddenPacts || []).map((p) =>
+      p.id === pactId ? { ...p, active: !p.active } : p
+    );
+
+    const updatedPlayer: Player = {
+      ...player,
+      forbiddenPacts: updatedPacts,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
   };
 
   // Allocate Stat Point
@@ -736,10 +910,13 @@ const App: React.FC = () => {
   // Complete Penalty
   const handleCompletePenalty = () => {
     sound.playRaidVictory();
+    sound.playHeal();
     setIsPenaltyModalOpen(false);
     const bonusXp = 500;
-    const updated = {
+    const maxHp = player.maxHp ?? 100;
+    const updated: Player = {
       ...player,
+      hp: maxHp,
       xp: player.xp + bonusXp,
       statPoints: player.statPoints + 1,
     };
@@ -748,7 +925,7 @@ const App: React.FC = () => {
     setSystemModal({
       isOpen: true,
       title: 'SUPERVIVENCIA EN PENALIZACIÓN',
-      subtitle: 'Has superado el castigo del Sistema. Tus músculos y temple han sido reforzados.',
+      subtitle: 'Has superado el castigo del Sistema. Tus músculos y temple han sido reforzados y tus Puntos de Salud (HP) han sido totalmente restaurados.',
       type: 'info',
       rewards: {
         xp: bonusXp,
@@ -756,7 +933,7 @@ const App: React.FC = () => {
       },
       onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
     });
-    addLog('Zona de Penalización superada con éxito. +1 Punto de Estadística ganado.', 'penalty');
+    addLog('Zona de Penalización superada con éxito. HP restaurado al 100% y +1 Punto de Estadística.', 'penalty');
   };
 
   // Shadow Army Methods
@@ -1338,6 +1515,7 @@ const App: React.FC = () => {
             setIsAuthModalOpen(false);
             setAwakened(true);
             saveIsAwakened(true);
+            setCurrentPage('dashboard');
             addLog(`Bienvenido, Cazador ${user.email}. Progreso sincronizado con Supabase.`, 'system');
           }}
         />
@@ -1363,7 +1541,10 @@ const App: React.FC = () => {
           sound.playBeep(420, 0.05);
           await signOutHunter();
           setCurrentUser(null);
-          addLog('Sesión cerrada. El progreso continúa guardándose localmente.', 'system');
+          setAwakened(false);
+          saveIsAwakened(false);
+          setCurrentPage('dashboard');
+          addLog('Sesión cerrada. Regresando al portal de autenticación.', 'system');
         }}
       />
 
@@ -1380,6 +1561,8 @@ const App: React.FC = () => {
               onResetQuestProgress={resetQuestProgress}
               onDeleteQuest={deleteQuest}
               onAllocateStat={allocateStat}
+              onAddRandomQuest={handleQuickAddRandomQuest}
+              onAddBalancedRoutine={handleQuickAddBalancedRoutine}
               onOpenQuestModal={() => setIsQuestModalOpen(true)}
               onOpenPenaltyModal={() => setIsPenaltyModalOpen(true)}
               onOpenProfileModal={() => setIsProfileModalOpen(true)}
@@ -1389,6 +1572,9 @@ const App: React.FC = () => {
               onOpenFocusModal={() => setIsFocusModalOpen(true)}
               onOpenMirrorModal={() => setIsMirrorModalOpen(true)}
               onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+              onTriggerPactInfraction={handleTriggerPactInfraction}
+              onAddCustomPact={handleAddCustomPact}
+              onTogglePactActive={handleTogglePactActive}
             />
           )}
 
@@ -1481,7 +1667,7 @@ const App: React.FC = () => {
         player={player}
         quests={quests}
         onCompleteQuest={completeQuest}
-        onIncrementQuestProgress={incrementQuestProgress}
+        onIncrementQuestProgress={(qId) => incrementQuestProgress(qId, 1)}
         onOpenQuestModal={() => setIsQuestModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onAllocateStat={allocateStat}
