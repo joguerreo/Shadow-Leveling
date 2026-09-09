@@ -67,14 +67,14 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
   const theme = getRankTheme(player.rank);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain touch-pan-y">
       <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
 
-      <div className="relative w-full max-w-xl my-8 animate-modal flex flex-col items-center">
+      <div className="relative w-full max-w-xl my-auto sm:my-6 animate-modal flex flex-col items-center">
         {/* The Card */}
         <div
           ref={cardRef}
-          className={`w-full bg-slate-950 border-2 ${theme.border} rounded-3xl p-6 relative overflow-hidden ${theme.glow} bg-gradient-to-br ${theme.gradient} space-y-6 shadow-2xl`}
+          className={`w-full bg-slate-950 border-2 ${theme.border} rounded-2xl sm:rounded-3xl p-4 sm:p-6 relative overflow-hidden ${theme.glow} bg-gradient-to-br ${theme.gradient} space-y-5 sm:space-y-6 shadow-2xl`}
         >
           {/* Holographic Watermark effect */}
           <div className="absolute -right-12 -top-12 opacity-5 text-white pointer-events-none select-none">
@@ -192,7 +192,7 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
         <div className="mt-4 flex gap-3 w-full max-w-sm">
           <button
             onClick={handleCopyStats}
-            className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase rounded-xl transition-all flex items-center justify-center gap-1.5"
+            className="min-h-[44px] flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95"
           >
             <span className="material-symbols-outlined text-sm">
               {copied ? 'check' : 'content_copy'}
@@ -201,7 +201,7 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
           </button>
           <button
             onClick={onClose}
-            className="px-6 py-3 bg-primary hover:bg-accent text-white font-black text-xs uppercase rounded-xl transition-all system-glow"
+            className="min-h-[44px] px-6 py-3 bg-primary hover:bg-accent text-white font-black text-xs uppercase rounded-xl transition-all system-glow active:scale-95"
           >
             Cerrar
           </button>

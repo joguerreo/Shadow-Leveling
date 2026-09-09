@@ -3,6 +3,7 @@ import { Player, Rank } from '../types';
 import { AVATAR_CATALOG, FRAME_CATALOG, AvatarMeta, FrameMeta } from './avatars/avatarCatalog';
 import { HunterAvatar } from './avatars/HunterAvatar';
 import { calculateCombatPower } from '../utils/calculator';
+import { EVOLUTION_STAGES, getEvolutionStageForLevel } from '../utils/avatarEvolution';
 import { sound } from '../utils/sound';
 import confetti from 'canvas-confetti';
 
@@ -17,11 +18,13 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
   onClose,
   onUpdateProfile,
 }) => {
-  const [selectedAvatarId, setSelectedAvatarId] = useState<string>(player.avatarId || 'monarch-shadow');
-  const [selectedFrameId, setSelectedFrameId] = useState<string>(player.avatarFrame || 'frame-e');
+  const currentEvolution = getEvolutionStageForLevel(player.level || 1);
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string>(player.avatarId || currentEvolution.avatarId);
+  const [selectedFrameId, setSelectedFrameId] = useState<string>(player.avatarFrame || currentEvolution.frameId);
+  const [autoEvolve, setAutoEvolve] = useState<boolean>(player.autoEvolveAvatar !== false);
   const [hunterName, setHunterName] = useState<string>(player.name);
   const [activeTitle, setActiveTitle] = useState<string>(player.equippedTitle || player.title);
-  const [selectedTab, setSelectedTab] = useState<'catalog' | 'license' | 'frames'>('catalog');
+  const [selectedTab, setSelectedTab] = useState<'evolution' | 'catalog' | 'license' | 'frames'>('evolution');
   const [classFilter, setClassFilter] = useState<string>('all');
 
   const combatPower = calculateCombatPower(player);
@@ -30,8 +33,9 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
     sound.playBeep(650, 0.08, 'sawtooth');
     onUpdateProfile({
       name: hunterName.trim() || player.name,
-      avatarId: selectedAvatarId,
-      avatarFrame: selectedFrameId,
+      avatarId: autoEvolve ? currentEvolution.avatarId : selectedAvatarId,
+      avatarFrame: autoEvolve ? currentEvolution.frameId : selectedFrameId,
+      autoEvolveAvatar: autoEvolve,
       equippedTitle: activeTitle,
       title: activeTitle,
     });
@@ -58,25 +62,25 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
   const currentFrameMeta = FRAME_CATALOG.find((f) => f.id === selectedFrameId) || FRAME_CATALOG[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#0c101d] border-2 border-primary/40 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col shadow-[0_0_60px_rgba(77,106,255,0.3)] text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn overflow-y-auto overscroll-contain">
+      <div className="bg-[#0c101d] border-2 border-primary/40 rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[92dvh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_60px_rgba(77,106,255,0.3)] text-white my-auto">
         {/* Header */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-primary/20 via-surface-dark to-accent/20">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-primary/20 via-surface-dark to-accent/20 sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary shrink-0">
               <span className="material-symbols-outlined text-2xl">badge</span>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase font-display text-white">
-                  Identificación & Avatar del Cazador
+                <h2 className="text-base sm:text-xl font-black italic tracking-tight uppercase font-display text-white truncate">
+                  Evolución & Aspecto del Cazador
                 </h2>
-                <span className="px-2 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-mono font-bold text-primary">
-                  SISTEMA OFICIAL
+                <span className="px-1.5 sm:px-2 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-mono font-bold text-primary shrink-0">
+                  FASE {currentEvolution.tier}/6
                 </span>
               </div>
-              <p className="text-slate-400 text-xs font-mono">
-                Personaliza tu aspecto SVG, marco de rango de aura y credenciales de la Asociación.
+              <p className="text-slate-400 text-xs font-mono truncate">
+                Aspecto SVG, metamorfosis de maná y credenciales oficiales
               </p>
             </div>
           </div>
@@ -86,27 +90,44 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
               sound.playBeep(400, 0.04);
               onClose();
             }}
-            className="size-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all border border-white/5"
+            className="min-h-[44px] min-w-[44px] rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-all border border-white/5 shrink-0"
+            title="Cerrar"
+            aria-label="Cerrar"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-white/10 px-6 bg-surface-dark/50 gap-2 pt-2">
+        <div className="flex border-b border-white/10 px-3 sm:px-6 bg-surface-dark/50 gap-1 sm:gap-2 pt-1 overflow-x-auto shrink-0 no-scrollbar">
+          <button
+            onClick={() => {
+              sound.playBeep(520, 0.03);
+              setSelectedTab('evolution');
+            }}
+            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+              selectedTab === 'evolution'
+                ? 'border-primary text-primary bg-primary/10 rounded-t-xl'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">upgrade</span>
+            Evolución ({currentEvolution.tier}/6)
+          </button>
+
           <button
             onClick={() => {
               sound.playBeep(520, 0.03);
               setSelectedTab('catalog');
             }}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               selectedTab === 'catalog'
-                ? 'border-primary text-primary'
+                ? 'border-primary text-primary bg-primary/10 rounded-t-xl'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <span className="material-symbols-outlined text-sm">palette</span>
-            Catálogo de Avatares SVG ({AVATAR_CATALOG.length})
+            Catálogo ({AVATAR_CATALOG.length})
           </button>
 
           <button
@@ -114,14 +135,14 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
               sound.playBeep(520, 0.03);
               setSelectedTab('frames');
             }}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               selectedTab === 'frames'
-                ? 'border-accent text-accent'
+                ? 'border-accent text-accent bg-accent/10 rounded-t-xl'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <span className="material-symbols-outlined text-sm">auto_awesome</span>
-            Marcos de Rango & Aura ({FRAME_CATALOG.length})
+            Aura & Marcos ({FRAME_CATALOG.length})
           </button>
 
           <button
@@ -129,9 +150,9 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
               sound.playBeep(520, 0.03);
               setSelectedTab('license');
             }}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               selectedTab === 'license'
-                ? 'border-indigo-400 text-indigo-400'
+                ? 'border-indigo-400 text-indigo-400 bg-indigo-500/10 rounded-t-xl'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -141,23 +162,23 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Active Preview Strip */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 overscroll-contain touch-pan-y">
+          {/* Active Preview Strip & Auto-Evolve Toggle */}
           <div className="p-4 bg-surface-card rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <HunterAvatar
-                avatarId={selectedAvatarId}
-                frameId={selectedFrameId}
+                avatarId={autoEvolve ? currentEvolution.avatarId : selectedAvatarId}
+                frameId={autoEvolve ? currentEvolution.frameId : selectedFrameId}
                 size="xl"
                 animated
               />
               <div className="space-y-1 text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-2">
                   <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-primary/20 text-primary border border-primary/30">
-                    {currentAvatarMeta.badge}
+                    {autoEvolve ? currentEvolution.subTitle : currentAvatarMeta.badge}
                   </span>
                   <span className="text-xs font-bold text-slate-400 font-mono">
-                    Clase: {currentAvatarMeta.hunterClass}
+                    Nv. {player.level} • {player.rank}
                   </span>
                 </div>
                 <h3 className="text-xl font-black uppercase text-white font-display">
@@ -167,13 +188,37 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
                   « {activeTitle} »
                 </p>
                 <p className="text-xs text-slate-400 max-w-md">
-                  {currentAvatarMeta.name} — {currentAvatarMeta.description}
+                  {autoEvolve ? currentEvolution.description : `${currentAvatarMeta.name} — ${currentAvatarMeta.description}`}
                 </p>
               </div>
             </div>
 
-            {/* Quick Name & Title Edits */}
-            <div className="flex flex-col gap-2 w-full md:w-64">
+            {/* Quick Name, Title & Auto-Evolve Toggle */}
+            <div className="flex flex-col gap-2.5 w-full md:w-64">
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-white flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-primary">auto_mode</span>
+                    Evolución Automática
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-mono block">
+                    {autoEvolve ? 'Sincronizado con Nivel ' + player.level : 'Aspecto manual'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBeep(autoEvolve ? 450 : 650, 0.04);
+                    setAutoEvolve(!autoEvolve);
+                  }}
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors flex items-center ${
+                    autoEvolve ? 'bg-primary justify-end' : 'bg-slate-700 justify-start'
+                  }`}
+                >
+                  <div className="size-5 rounded-full bg-white shadow-md" />
+                </button>
+              </div>
+
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
                   Nombre del Cazador
@@ -214,6 +259,102 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Tab Content: Avatar Evolution */}
+          {selectedTab === 'evolution' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-base">upgrade</span>
+                    Senda de la Metamorfosis del Monarca
+                  </h4>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Tu avatar evoluciona automáticamente a medida que conquistas mazmorras y aumentas tu nivel.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-mono font-bold text-primary bg-primary/15 border border-primary/30 px-2.5 py-1 rounded-lg">
+                    Fase Actual: {currentEvolution.title.split(':')[0]}
+                  </span>
+                </div>
+              </div>
+
+              {/* Evolution Stages Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {EVOLUTION_STAGES.map((stage) => {
+                  const isUnlocked = (player.level || 1) >= stage.minLevel;
+                  const isCurrent = currentEvolution.tier === stage.tier;
+                  const isSelected = autoEvolve ? isCurrent : selectedAvatarId === stage.avatarId;
+
+                  return (
+                    <div
+                      key={stage.tier}
+                      onClick={() => {
+                        if (isUnlocked) {
+                          sound.playBeep(560, 0.03);
+                          setSelectedAvatarId(stage.avatarId);
+                          setSelectedFrameId(stage.frameId);
+                          setAutoEvolve(false);
+                        }
+                      }}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3.5 ${
+                        isSelected
+                          ? 'bg-primary/20 border-primary shadow-[0_0_20px_rgba(77,106,255,0.3)]'
+                          : isUnlocked
+                          ? 'bg-surface-card border-white/10 hover:border-white/20'
+                          : 'bg-black/30 border-white/5 opacity-55'
+                      }`}
+                    >
+                      <div className="relative shrink-0">
+                        <HunterAvatar
+                          avatarId={stage.avatarId}
+                          frameId={stage.frameId}
+                          size="md"
+                          showGlow={isSelected}
+                        />
+                        {isCurrent && (
+                          <span className="absolute -top-1 -right-1 size-3 bg-emerald-400 rounded-full animate-ping" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-mono font-black uppercase text-primary">
+                            {stage.title.split(':')[0]}
+                          </span>
+                          <span
+                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                              isUnlocked
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-white/5 text-slate-500'
+                            }`}
+                          >
+                            {isUnlocked ? 'DESBLOQUEADO' : `REQ: NV.${stage.minLevel}`}
+                          </span>
+                        </div>
+
+                        <h5 className="text-xs font-bold text-white leading-snug truncate">
+                          {stage.subTitle}
+                        </h5>
+
+                        <p className="text-[11px] text-slate-400 leading-normal line-clamp-2">
+                          {stage.description}
+                        </p>
+
+                        <div className="pt-1 flex items-center justify-between text-[10px] font-mono">
+                          <span className="text-accent font-bold">{stage.statBonusText}</span>
+                          {isCurrent && (
+                            <span className="text-primary font-black uppercase">¡FORMA ACTUAL!</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Tab Content: Avatar Catalog */}
           {selectedTab === 'catalog' && (
@@ -418,20 +559,20 @@ export const HunterProfileModal: React.FC<HunterProfileModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-white/10 bg-surface-dark/80 flex justify-between items-center">
+        <div className="p-3.5 sm:p-5 border-t border-white/10 bg-surface-dark/95 backdrop-blur-md flex justify-between items-center gap-3 sticky bottom-0 z-20 shrink-0">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-slate-300 transition-all"
+            className="min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-slate-300 transition-all active:scale-95"
           >
             Cancelar
           </button>
 
           <button
             onClick={handleSave}
-            className="px-6 py-2.5 rounded-xl bg-primary hover:bg-accent text-xs font-black uppercase tracking-wider text-white system-glow flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/30"
+            className="min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl bg-primary hover:bg-accent text-xs font-black uppercase tracking-wider text-white system-glow flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-primary/30"
           >
             <span className="material-symbols-outlined text-base">save</span>
-            Guardar Aspecto del Cazador
+            <span>Guardar Aspecto</span>
           </button>
         </div>
       </div>

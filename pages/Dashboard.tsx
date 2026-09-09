@@ -4,6 +4,7 @@ import { calculateCombatPower, getEffectiveAttributes } from '../utils/calculato
 import { sound } from '../utils/sound';
 import OracleEvaluationModal from '../components/OracleEvaluationModal';
 import { HunterAvatar } from '../components/avatars/HunterAvatar';
+import { resolvePlayerAvatar } from '../utils/avatarEvolution';
 
 interface DashboardProps {
   player: Player;
@@ -51,6 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const effectiveStats = getEffectiveAttributes(player);
   const combatPower = calculateCombatPower(player);
+  const { avatarId: activeAvatarId, frameId: activeFrameId, currentStage: evolutionStage } = resolvePlayerAvatar(player);
 
   const currentMp = player.mp ?? 300;
   const maxMp = player.maxMp ?? 300;
@@ -113,11 +115,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onOpenProfileModal?.();
               }}
               className="cursor-pointer group/avatar relative"
-              title="Haz clic para personalizar Avatar y Marco"
+              title="Haz clic para personalizar Avatar y Evolución"
             >
               <HunterAvatar
-                avatarId={player.avatarId || 'monarch-shadow'}
-                frameId={player.avatarFrame || 'frame-e'}
+                avatarId={activeAvatarId}
+                frameId={activeFrameId}
                 size="xl"
                 showGlow
                 animated
@@ -136,6 +138,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="px-2 py-0.5 bg-primary/20 border border-primary/40 rounded text-[9px] font-black text-primary uppercase">
                   {player.title}
                 </span>
+                <button
+                  onClick={onOpenProfileModal}
+                  className="px-2 py-0.5 bg-primary/15 hover:bg-primary/25 rounded text-[9px] font-mono text-primary hover:text-white border border-primary/30 transition-all flex items-center gap-1"
+                  title="Fase de evolución del avatar"
+                >
+                  <span className="material-symbols-outlined text-[11px]">upgrade</span>
+                  <span>Fase {evolutionStage.tier}/6</span>
+                </button>
                 <button
                   onClick={onOpenProfileModal}
                   className="px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded text-[9px] font-mono text-slate-300 hover:text-white border border-white/5 transition-all flex items-center gap-1"

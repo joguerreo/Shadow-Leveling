@@ -52,45 +52,47 @@ export const HunterSagasModal: React.FC<HunterSagasModalProps> = ({
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain">
       <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
 
-      <div className="relative w-full max-w-4xl bg-surface-dark border border-border-dark rounded-3xl shadow-2xl overflow-hidden my-8 animate-modal flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-primary/20 to-purple-950/40 border-b border-border-dark flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/20 border border-primary/40 rounded-xl text-primary">
-              <span className="material-symbols-outlined text-2xl">auto_stories</span>
+      <div className="relative w-full max-w-4xl bg-surface-dark border border-border-dark rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto sm:my-6 animate-modal flex flex-col max-h-[92dvh] sm:max-h-[88vh]">
+        {/* Sticky Header with high z-index and 44px touch target */}
+        <div className="px-4 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-slate-900 via-primary/20 to-purple-950/40 border-b border-border-dark flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 bg-primary/20 border border-primary/40 rounded-xl text-primary shrink-0">
+              <span className="material-symbols-outlined text-xl sm:text-2xl">auto_stories</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-white text-xl font-black italic uppercase tracking-wider font-display">
-                  Arcos Narrativos & Sagas de Largo Plazo
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h3 className="text-white text-sm sm:text-lg font-black italic uppercase tracking-wider font-display truncate">
+                  Arcos Narrativos & Sagas
                 </h3>
-                <span className="px-2 py-0.5 rounded bg-accent/20 border border-accent/40 text-accent text-[10px] font-black uppercase font-mono">
-                  Metas 21 / 60 / 90 Días
+                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-accent/20 border border-accent/40 text-accent text-[9px] sm:text-[10px] font-black uppercase font-mono shrink-0">
+                  21/60/90D
                 </span>
               </div>
-              <p className="text-slate-400 text-xs">
-                Campañas acumulativas para la reconfiguración neuronal y transformación definitiva
+              <p className="text-slate-400 text-[11px] sm:text-xs truncate">
+                Campañas acumulativas para transformación definitiva
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
+            className="min-h-[44px] min-w-[44px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-colors shrink-0"
+            title="Cerrar ventana"
+            aria-label="Cerrar"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* Saga Tab Selector */}
-        <div className="flex gap-2 p-3 bg-black/40 border-b border-white/5 overflow-x-auto">
+        <div className="flex gap-2 p-2.5 sm:p-3 bg-black/40 border-b border-white/5 overflow-x-auto shrink-0 no-scrollbar">
           {sagas.map((saga) => (
             <button
               key={saga.id}
               onClick={() => handleSelect(saga.id)}
-              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 selectedSagaId === saga.id
                   ? 'bg-primary text-white system-glow shadow-lg'
                   : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
@@ -108,9 +110,9 @@ export const HunterSagasModal: React.FC<HunterSagasModalProps> = ({
           ))}
         </div>
 
-        {/* Content Body */}
+        {/* Content Body with smooth mobile touch scrolling */}
         {currentSaga && (
-          <div className="p-6 overflow-y-auto space-y-6 flex-1">
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 overscroll-contain touch-pan-y">
             {/* Banner Lore */}
             <div
               className={`p-6 rounded-2xl bg-gradient-to-br ${currentSaga.bannerColor} border border-white/10 relative overflow-hidden`}
@@ -283,6 +285,20 @@ export const HunterSagasModal: React.FC<HunterSagasModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Mobile Quick Action Bottom Bar */}
+        <div className="p-3 sm:p-4 bg-slate-950/90 backdrop-blur-md border-t border-white/10 flex items-center justify-between gap-3 shrink-0">
+          <span className="text-[11px] font-mono text-slate-400 truncate">
+            {currentSaga ? `${currentSaga.title} (${activeDays}/${currentSaga.durationDays}d)` : 'Sagas del Monarca'}
+          </span>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 min-h-[40px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-mono font-bold text-white transition-all flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+            <span>Cerrar</span>
+          </button>
+        </div>
       </div>
     </div>
   );

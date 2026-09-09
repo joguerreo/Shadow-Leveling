@@ -1,4 +1,5 @@
 import { Player, Quest, Dungeon, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga } from '../types';
+import { sanitizePlayerData } from './playerSanitizer';
 import {
   INITIAL_PLAYER,
   INITIAL_QUESTS,
@@ -30,31 +31,12 @@ export function loadStoredPlayer(): Player {
     const saved = localStorage.getItem(STORAGE_KEYS.PLAYER);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure all schema fields exist
-      return {
-        ...INITIAL_PLAYER,
-        ...parsed,
-        equipped: {
-          ...INITIAL_PLAYER.equipped,
-          ...(parsed.equipped || {})
-        },
-        attributes: {
-          ...INITIAL_PLAYER.attributes,
-          ...(parsed.attributes || {})
-        },
-        shadowArmy: parsed.shadowArmy && parsed.shadowArmy.length > 0 ? parsed.shadowArmy : INITIAL_SHADOW_ARMY,
-        activityHistory: parsed.activityHistory && parsed.activityHistory.length > 0 ? parsed.activityHistory : INITIAL_ACTIVITY_HISTORY,
-        titlesUnlocked: parsed.titlesUnlocked && parsed.titlesUnlocked.length > 0 ? parsed.titlesUnlocked : INITIAL_PLAYER.titlesUnlocked,
-      };
+      return sanitizePlayerData(parsed);
     }
   } catch (e) {
     console.error('Failed to load player from localStorage', e);
   }
-  return {
-    ...INITIAL_PLAYER,
-    shadowArmy: INITIAL_SHADOW_ARMY,
-    activityHistory: INITIAL_ACTIVITY_HISTORY,
-  };
+  return sanitizePlayerData(INITIAL_PLAYER);
 }
 
 export function saveStoredPlayer(player: Player): void {

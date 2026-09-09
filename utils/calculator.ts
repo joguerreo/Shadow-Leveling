@@ -1,20 +1,28 @@
 import { Player, Rank } from '../types';
 
 export function calculateCombatPower(player: Player): number {
+  if (!player) return 0;
   let power = 0;
 
   // Base power from level
-  power += player.level * 1250;
+  power += (player.level || 1) * 1250;
 
-  // Power from attributes
-  const { str, int, vit, agi, wis, cha } = player.attributes;
-  const baseAttrSum = str.value + int.value + vit.value + agi.value + wis.value + cha.value;
+  // Power from attributes with safe fallbacks
+  const attrs = player.attributes || ({} as any);
+  const str = attrs.str?.value ?? 10;
+  const int = attrs.int?.value ?? 10;
+  const vit = attrs.vit?.value ?? 10;
+  const agi = attrs.agi?.value ?? 10;
+  const wis = attrs.wis?.value ?? 10;
+  const cha = attrs.cha?.value ?? 10;
+
+  const baseAttrSum = str + int + vit + agi + wis + cha;
   power += baseAttrSum * 450;
 
   // Power from equipped items
-  const equipment = Object.values(player.equipped);
+  const equipment = Object.values(player.equipped || {});
   equipment.forEach((item) => {
-    if (item) {
+    if (item && item.stats) {
       // Rarity multiplier
       let rarityMultiplier = 1;
       if (item.rarity === 'Rare') rarityMultiplier = 1.5;
@@ -32,7 +40,7 @@ export function calculateCombatPower(player: Player): number {
   });
 
   // Title bonus
-  if (player.titlesUnlocked.length > 0) {
+  if (Array.isArray(player.titlesUnlocked) && player.titlesUnlocked.length > 0) {
     power += player.titlesUnlocked.length * 2000;
   }
 
@@ -63,16 +71,18 @@ export function getTitleFromLevel(level: number): string {
 }
 
 export function getEffectiveAttributes(player: Player) {
+  const attrs = player?.attributes || ({} as any);
   const result = {
-    str: player.attributes.str.value,
-    int: player.attributes.int.value,
-    vit: player.attributes.vit.value,
-    agi: player.attributes.agi.value,
-    wis: player.attributes.wis.value,
-    cha: player.attributes.cha.value,
+    str: attrs.str?.value ?? 10,
+    int: attrs.int?.value ?? 10,
+    vit: attrs.vit?.value ?? 10,
+    agi: attrs.agi?.value ?? 10,
+    wis: attrs.wis?.value ?? 10,
+    cha: attrs.cha?.value ?? 10,
   };
 
-  Object.values(player.equipped).forEach((item) => {
+  const equipped = Object.values(player?.equipped || {});
+  equipped.forEach((item) => {
     if (item && item.stats) {
       if (item.stats.STR) result.str += item.stats.STR;
       if (item.stats.INT) result.int += item.stats.INT;

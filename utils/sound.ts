@@ -3,20 +3,55 @@
 class SoundManager {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
+  private isUnlocked: boolean = false;
 
   constructor() {
-    // Lazy AudioContext initialization on first user interaction
+    if (typeof window !== 'undefined') {
+      const unlockHandler = () => {
+        this.unlockAudio();
+        ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'].forEach((evt) => {
+          window.removeEventListener(evt, unlockHandler);
+          document.removeEventListener(evt, unlockHandler);
+        });
+      };
+
+      ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'].forEach((evt) => {
+        window.addEventListener(evt, unlockHandler, { passive: true });
+        document.addEventListener(evt, unlockHandler, { passive: true });
+      });
+    }
+  }
+
+  public unlockAudio() {
+    if (this.isUnlocked && this.ctx && this.ctx.state === 'running') return;
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      // Play a 1-sample silent buffer to unlock iOS Safari WebAudio
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      this.isUnlocked = true;
+    } catch {
+      // Ignore
+    }
   }
 
   private getContext(): AudioContext | null {
-    if (!this.ctx && typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return null;
+    if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
     return this.ctx;
   }
@@ -26,19 +61,21 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start();
+      osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + duration);
     } catch {
       // Ignore audio failure if restricted by browser
@@ -50,20 +87,29 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.51];
+      const now = ctx.currentTime;
+
       notes.forEach((freq, idx) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime);
-          gain.gain.setValueAtTime(0.2, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.35);
-        }, idx * 70);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = now + idx * 0.07;
+        const noteDuration = 0.35;
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, noteStart);
+
+        gain.gain.setValueAtTime(0.001, noteStart);
+        gain.gain.linearRampToValueAtTime(0.25, noteStart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + noteDuration);
       });
     } catch {
       // Ignore audio failure
@@ -75,20 +121,29 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const notes = [523.25, 659.25, 783.99, 1046.5];
+      const now = ctx.currentTime;
+
       notes.forEach((freq, idx) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime);
-          gain.gain.setValueAtTime(0.18, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.25);
-        }, idx * 60);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = now + idx * 0.06;
+        const noteDuration = 0.25;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteStart);
+
+        gain.gain.setValueAtTime(0.001, noteStart);
+        gain.gain.linearRampToValueAtTime(0.22, noteStart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + noteDuration);
       });
     } catch {
       // Ignore
@@ -100,16 +155,18 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
       osc.frequency.setValueAtTime(400, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
+      osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.12);
     } catch {
       // Ignore
@@ -121,20 +178,29 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const chord = [392.00, 493.88, 587.33, 783.99, 987.77];
+      const now = ctx.currentTime;
+
       chord.forEach((freq, idx) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime);
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.8);
-        }, idx * 100);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = now + idx * 0.09;
+        const noteDuration = 0.8;
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, noteStart);
+
+        gain.gain.setValueAtTime(0.001, noteStart);
+        gain.gain.linearRampToValueAtTime(0.18, noteStart + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + noteDuration);
       });
     } catch {
       // Ignore
@@ -146,20 +212,27 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
-      [0, 200, 400].forEach((delay) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(440, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-          gain.gain.setValueAtTime(0.2, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.15);
-        }, delay);
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+      const now = ctx.currentTime;
+      [0, 0.18, 0.36].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = now + offset;
+        const noteDuration = 0.14;
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, noteStart);
+        osc.frequency.exponentialRampToValueAtTime(880, noteStart + noteDuration);
+
+        gain.gain.setValueAtTime(0.22, noteStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + noteDuration);
       });
     } catch {
       // Ignore
@@ -171,19 +244,26 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
-      [0, 150, 300].forEach((delay) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(220, ctx.currentTime);
-          gain.gain.setValueAtTime(0.25, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.1);
-        }, delay);
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+      const now = ctx.currentTime;
+      [0, 0.14, 0.28].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = now + offset;
+        const noteDuration = 0.11;
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, noteStart);
+
+        gain.gain.setValueAtTime(0.28, noteStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + noteDuration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + noteDuration);
       });
     } catch {
       // Ignore
@@ -195,17 +275,19 @@ class SoundManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(110, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 1.2);
       gain.gain.setValueAtTime(0.01, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.8);
+      gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + 0.8);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
+      osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 1.4);
     } catch {
       // Ignore

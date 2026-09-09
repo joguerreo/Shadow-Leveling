@@ -6,26 +6,41 @@ import { AVATAR_CATALOG } from '../components/avatars/avatarCatalog';
 interface LandingPageProps {
   onAwaken: (hunterName: string, avatarId?: string) => void;
   onOpenAuth?: () => void;
+  onFastLocalLogin?: (hunterName: string, avatarId?: string) => void;
   isSupabaseConfigured?: boolean;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupabaseConfigured = true }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ 
+  onAwaken, 
+  onOpenAuth, 
+  onFastLocalLogin,
+  isSupabaseConfigured = true 
+}) => {
   const [name, setName] = useState('Sung Jin-Woo');
   const [selectedAvatarId, setSelectedAvatarId] = useState('monarch-shadow');
   const [clicked, setClicked] = useState(false);
 
-  const handleStart = () => {
+  const handleStartLocal = () => {
     sound.playAwakening();
     setClicked(true);
     setTimeout(() => {
-      onAwaken(name.trim() || 'Sung Jin-Woo', selectedAvatarId);
-    }, 1400);
+      if (onFastLocalLogin) {
+        onFastLocalLogin(name.trim() || 'Sung Jin-Woo', selectedAvatarId);
+      } else {
+        onAwaken(name.trim() || 'Sung Jin-Woo', selectedAvatarId);
+      }
+    }, 600);
+  };
+
+  const handleOpenAuth = () => {
+    sound.playBeep(580, 0.04);
+    if (onOpenAuth) onOpenAuth();
   };
 
   const starterAvatars = AVATAR_CATALOG.slice(0, 6);
 
   return (
-    <div className={`relative min-h-screen bg-[#0b0c10] flex items-center justify-center overflow-hidden transition-all duration-1000 py-10 ${clicked ? 'opacity-0 scale-110' : 'opacity-100'}`}>
+    <div className={`relative min-h-screen bg-[#0b0c10] flex items-center justify-center overflow-hidden transition-all duration-700 py-10 ${clicked ? 'opacity-0 scale-105' : 'opacity-100'}`}>
       {/* Background Matrix Grid */}
       <div 
         className="absolute inset-0 opacity-20 pointer-events-none" 
@@ -33,22 +48,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupab
       />
       
       <div className="max-w-4xl px-6 md:px-8 flex flex-col items-center text-center z-10 space-y-6">
-        {/* System Tag */}
-        <span className="text-primary text-xs font-black tracking-[0.4em] uppercase py-1.5 px-5 border border-primary/40 rounded-full bg-primary/10 animate-pulse text-glow">
-          [ NOTIFICACIÓN DEL SISTEMA DEL MONARCA ]
-        </span>
+        {/* System Tag with Mandatory Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-300 text-xs font-mono font-bold tracking-widest uppercase animate-pulse">
+          <span className="material-symbols-outlined text-sm text-amber-400">lock</span>
+          <span>[ AUTENTICACIÓN OBLIGATORIA DEL CAZADOR ]</span>
+        </div>
 
         {/* Headline */}
         <h1 className="font-display text-white text-4xl sm:text-6xl md:text-7xl font-black leading-tight tracking-tight drop-shadow-2xl">
-          EL MUNDO HA CAMBIADO.<br />
+          SISTEMA DEL MONARCA<br />
           <span className="bg-gradient-to-r from-white via-primary to-accent bg-clip-text text-transparent italic">
-            AHORA TÚ PUEDES ASCENDER.
+            INICIA SESIÓN PARA DESPERTAR
           </span>
         </h1>
 
         <p className="text-slate-400 text-base md:text-lg font-light italic max-w-2xl leading-relaxed">
-          Has sido seleccionado como el único Jugador con el poder del Sistema. 
-          Forja tu cuerpo, expande tu intelecto y sube de rango desde la nada.
+          El Sistema requiere autenticar tu identidad para sincronizar tus estadísticas, catálogo de misiones, rangos y almacenamiento en la nube.
         </p>
 
         {/* Selected Avatar Preview & Quick Selector */}
@@ -98,7 +113,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupab
         {/* Hunter Name Input */}
         <div className="w-full max-w-xs space-y-1.5 pt-1">
           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block text-left">
-            Nombre del Cazador
+            Nombre / Alias del Cazador
           </label>
           <input
             type="text"
@@ -109,36 +124,37 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupab
           />
         </div>
 
-        {/* Awaken & Supabase CTA */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
+        {/* Mandatory Auth Buttons */}
+        <div className="pt-2 flex flex-col items-center gap-3 w-full max-w-md">
+          {/* Primary Login Button */}
           <button 
-            onClick={handleStart}
-            className="group relative flex-1 w-full min-w-[240px] cursor-pointer items-center justify-center overflow-hidden rounded-2xl h-16 px-8 bg-gradient-to-r from-primary to-accent text-white gap-3 transition-all hover:scale-105 active:scale-95 system-glow shadow-2xl shadow-primary/30"
+            type="button"
+            onClick={handleOpenAuth}
+            className="group relative w-full cursor-pointer flex items-center justify-center overflow-hidden rounded-2xl h-16 px-8 bg-gradient-to-r from-primary to-accent text-white gap-3 transition-all hover:scale-105 active:scale-95 system-glow shadow-2xl shadow-primary/30"
           >
-            <span className="material-symbols-outlined text-[24px]">auto_awesome</span>
-            <span className="text-base font-black tracking-[0.2em] uppercase font-mono">Despertar</span>
+            <span className="material-symbols-outlined text-[24px]">login</span>
+            <span className="text-base font-black tracking-[0.15em] uppercase font-mono">
+              Iniciar Sesión / Registrarse
+            </span>
             <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
 
-          {onOpenAuth && (
-            <button
-              onClick={() => {
-                sound.playBeep(580, 0.04);
-                onOpenAuth();
-              }}
-              className="flex items-center justify-center gap-2 h-16 px-6 bg-[#121624] hover:bg-[#181d30] border border-primary/40 hover:border-primary rounded-2xl text-xs font-mono font-bold tracking-wider uppercase text-slate-200 hover:text-white transition-all shadow-lg shadow-black/50 w-full sm:w-auto"
-              title="Iniciar sesión con tu cuenta de Supabase"
-            >
-              <span className="material-symbols-outlined text-primary text-xl">login</span>
-              <span>Iniciar Sesión</span>
-            </button>
-          )}
+          {/* Quick Local Cazador Button */}
+          <button
+            type="button"
+            onClick={handleStartLocal}
+            className="flex items-center justify-center gap-2 h-12 px-6 bg-[#121624] hover:bg-[#181d30] border border-white/10 hover:border-primary/50 rounded-xl text-xs font-mono font-bold tracking-wider uppercase text-slate-300 hover:text-white transition-all shadow-lg shadow-black/50 w-full"
+            title="Entrar con credencial de Cazador Local (Offline)"
+          >
+            <span className="material-symbols-outlined text-primary text-lg">fingerprint</span>
+            <span>Acceso Local / Cazador Despierto</span>
+          </button>
         </div>
 
         {/* Neural connection indicator */}
-        <div className="pt-4 flex flex-col items-center opacity-50">
+        <div className="pt-2 flex flex-col items-center opacity-60">
           <p className="text-[10px] uppercase tracking-[0.3em] font-mono text-slate-400">
-            Protocolo de interfaz neuronal: SINCRONIZADO
+            Protocolo de interfaz neuronal: AUTENTICACIÓN REQUERIDA
           </p>
           <div className="w-48 h-0.5 bg-primary/30 mt-2 overflow-hidden rounded-full">
             <div className="h-full bg-primary animate-progress" />
@@ -148,7 +164,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAwaken, onOpenAuth, isSupab
 
       <div className="absolute bottom-6 left-6 opacity-30 text-[10px] font-mono tracking-widest hidden md:block text-slate-400">
         SYS_STATUS: ONLINE<br />
-        MONARCH_CORE: STABLE_V2.0
+        AUTH_GATEWAY: MANDATORY
       </div>
 
       <style>{`

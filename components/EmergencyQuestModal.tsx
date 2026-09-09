@@ -32,8 +32,9 @@ export const EmergencyQuestModal: React.FC<EmergencyQuestModalProps> = ({ player
         });
 
         const data = await res.json();
-        if (data.quest) {
-          setQuestData(data.quest);
+        const generated = data.emergencyQuest || data.quest;
+        if (generated) {
+          setQuestData(generated);
         } else {
           throw new Error('No data');
         }

@@ -13,20 +13,58 @@ import { calculateCombatPower } from './calculator';
 
 // Supabase Environment Setup
 // Safe environment access in Vite/Client
-const supabaseUrl: string = ((import.meta as any).env?.VITE_SUPABASE_URL || '') as string;
-const supabaseAnonKey: string = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '') as string;
+function cleanSupabaseUrl(url: string | undefined): string {
+  if (!url) return '';
+  let clean = url.trim().replace(/^["']|["']$/g, '');
+  // Strip trailing slashes, /rest/v1, /rest, /auth/v1, or /v1 accidentally pasted
+  clean = clean.replace(/\/(rest|auth|graphql)(\/v\d+)?\/?$/i, '');
+  clean = clean.replace(/\/+$/, '');
+  return clean;
+}
+
+function cleanSupabaseKey(key: string | undefined): string {
+  if (!key) return '';
+  return key.trim().replace(/^["']|["']$/g, '');
+}
+
+const rawSupabaseUrl: string = ((import.meta as any).env?.VITE_SUPABASE_URL || '') as string;
+const rawSupabaseAnonKey: string = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '') as string;
+
+export const supabaseUrl = cleanSupabaseUrl(rawSupabaseUrl);
+export const supabaseAnonKey = cleanSupabaseKey(rawSupabaseAnonKey);
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   !supabaseUrl.includes('your-project') &&
-  !supabaseAnonKey.includes('your-anon-key')
+  !supabaseAnonKey.includes('your-anon-key') &&
+  (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://'))
 );
 
 // Graceful client fallback: will be null if credentials aren't inserted yet
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    })
   : null;
+
+function formatAuthError(err: any): string {
+  const msg = err?.message || String(err || '');
+  if (msg.toLowerCase().includes('invalid path specified in request url')) {
+    return 'URL de Supabase mal configurada. Asegúrate de que VITE_SUPABASE_URL sea solo "https://tu-proyecto.supabase.co" sin "/rest/v1" ni barras adicionales.';
+  }
+  if (msg.toLowerCase().includes('user already registered')) {
+    return 'Este correo ya está registrado. Intenta iniciar sesión con tu contraseña.';
+  }
+  if (msg.toLowerCase().includes('invalid login credentials')) {
+    return 'Correo o contraseña incorrectos. Verifica tus datos de cazador.';
+  }
+  return msg || 'Error de autenticación';
+}
 
 // User session listener
 export function onHunterAuthStateChange(callback: (user: User | null) => void) {
@@ -37,6 +75,8 @@ export function onHunterAuthStateChange(callback: (user: User | null) => void) {
 
   supabase.auth.getUser().then(({ data }) => {
     callback(data.user || null);
+  }).catch(() => {
+    callback(null);
   });
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -50,25 +90,41 @@ export function onHunterAuthStateChange(callback: (user: User | null) => void) {
 
 // Sign in with Email and Password
 export async function signInWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
-  if (!supabase) return { user: null, error: 'Supabase no está configurado aún. Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel.' };
+  if (!supabase) {
+    return { 
+      user: null, 
+      error: 'Supabase no está conectado todavía. Puedes utilizar el Modo Offline o verificar tus variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.' 
+    };
+  }
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { user: null, error: error.message };
+    const { data, error } = await supabase.auth.signInWithPassword({ 
+      email: email.trim(), 
+      password 
+    });
+    if (error) return { user: null, error: formatAuthError(error) };
     return { user: data.user, error: null };
   } catch (err: any) {
-    return { user: null, error: err.message || 'Error al iniciar sesión' };
+    return { user: null, error: formatAuthError(err) };
   }
 }
 
 // Sign up with Email and Password
 export async function signUpWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
-  if (!supabase) return { user: null, error: 'Supabase no está configurado aún. Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel.' };
+  if (!supabase) {
+    return { 
+      user: null, 
+      error: 'Supabase no está conectado todavía. Puedes utilizar el Modo Offline o verificar tus variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.' 
+    };
+  }
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { user: null, error: error.message };
+    const { data, error } = await supabase.auth.signUp({ 
+      email: email.trim(), 
+      password 
+    });
+    if (error) return { user: null, error: formatAuthError(error) };
     return { user: data.user, error: null };
   } catch (err: any) {
-    return { user: null, error: err.message || 'Error al registrar cazador' };
+    return { user: null, error: formatAuthError(err) };
   }
 }
 

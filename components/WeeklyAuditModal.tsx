@@ -120,40 +120,42 @@ export const WeeklyAuditModal: React.FC<WeeklyAuditModalProps> = ({ player, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain">
       <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
 
-      <div className="relative w-full max-w-2xl bg-surface-dark border border-border-dark rounded-3xl shadow-2xl overflow-hidden my-8 animate-modal flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-b border-border-dark flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/20 border border-indigo-500/40 rounded-xl text-indigo-400">
-              <span className="material-symbols-outlined text-2xl">verified_user</span>
+      <div className="relative w-full max-w-2xl bg-surface-dark border border-border-dark rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto sm:my-6 animate-modal flex flex-col max-h-[92dvh] sm:max-h-[88vh]">
+        {/* Sticky Header */}
+        <div className="px-4 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-b border-border-dark flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 bg-indigo-500/20 border border-indigo-500/40 rounded-xl text-indigo-400 shrink-0">
+              <span className="material-symbols-outlined text-xl sm:text-2xl">verified_user</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-white text-xl font-black italic uppercase tracking-wider font-display">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h3 className="text-white text-sm sm:text-lg font-black italic uppercase tracking-wider font-display truncate">
                   Auditoría Semanal de Cazador
                 </h3>
-                <span className="px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-black uppercase font-mono">
-                  IA Nemotron
+                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[9px] sm:text-[10px] font-black uppercase font-mono shrink-0">
+                  IA
                 </span>
               </div>
-              <p className="text-slate-400 text-xs">
-                Evaluación táctica oficial de la Asociación de Cazadores y el Sistema
+              <p className="text-slate-400 text-[11px] sm:text-xs truncate">
+                Evaluación táctica oficial del Sistema
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
+            className="min-h-[44px] min-w-[44px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-colors shrink-0"
+            title="Cerrar ventana"
+            aria-label="Cerrar"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 overscroll-contain touch-pan-y">
           {loading ? (
             <div className="py-16 text-center space-y-4">
               <div className="w-14 h-14 mx-auto border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -285,13 +287,28 @@ export const WeeklyAuditModal: React.FC<WeeklyAuditModalProps> = ({ player, onCl
               <div className="pt-2 flex justify-end">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 bg-primary hover:bg-accent text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all system-glow"
+                  className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-accent active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all system-glow min-h-[44px] flex items-center justify-center gap-2"
                 >
-                  Confirmar Dictamen
+                  <span className="material-symbols-outlined text-sm">check</span>
+                  <span>Confirmar Dictamen</span>
                 </button>
               </div>
             </>
           ) : null}
+        </div>
+
+        {/* Mobile Sticky Footer */}
+        <div className="p-3 bg-slate-950/90 backdrop-blur-md border-t border-white/10 flex items-center justify-between gap-3 shrink-0">
+          <span className="text-[11px] font-mono text-slate-400">
+            {report ? `Rango ${report.hunterRating} • Consistencia ${report.consistencyScore}%` : 'Auditoría IA'}
+          </span>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 min-h-[40px] rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-mono font-bold text-white transition-all flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+            <span>Cerrar</span>
+          </button>
         </div>
       </div>
     </div>

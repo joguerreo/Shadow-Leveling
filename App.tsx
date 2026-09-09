@@ -10,6 +10,7 @@ import WorldBosses from './pages/WorldBosses';
 import Analytics from './pages/Analytics';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
+import QuickMobileWidget from './components/QuickMobileWidget';
 import QuestModal from './components/QuestModal';
 import CreateDungeonModal from './components/CreateDungeonModal';
 import PenaltyModal from './components/PenaltyModal';
@@ -1473,6 +1474,17 @@ const App: React.FC = () => {
         current={currentPage}
         onNavigate={setCurrentPage}
         unallocatedPoints={player.statPoints}
+      />
+
+      {/* Mobile Quick Action Widget */}
+      <QuickMobileWidget
+        player={player}
+        quests={quests}
+        onCompleteQuest={completeQuest}
+        onIncrementQuestProgress={incrementQuestProgress}
+        onOpenQuestModal={() => setIsQuestModalOpen(true)}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onAllocateStat={allocateStat}
       />
 
       {/* Modals */}

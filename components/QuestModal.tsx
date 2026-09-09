@@ -2,17 +2,25 @@ import React, { useState } from 'react';
 import { Rank, QuestCategory, Quest, Player } from '../types';
 import { HABIT_PRESETS, HabitPreset } from '../constants';
 import { sound } from '../utils/sound';
+import { DAILY_QUEST_CATALOG, CatalogQuest, getRandomDailyQuests, getRandomSingleQuest } from '../utils/dailyQuestCatalog';
 
 interface QuestModalProps {
   player?: Player;
   onClose: () => void;
   onAdd: (quest: Omit<Quest, 'id' | 'completed' | 'createdAt'>) => void;
+  defaultTab?: ModalTab;
 }
 
 type ModalTab = 'autonomous_ai' | 'custom_ai' | 'presets' | 'manual';
 
-const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd }) => {
-  const [activeTab, setActiveTab] = useState<ModalTab>('autonomous_ai');
+const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, defaultTab = 'autonomous_ai' }) => {
+  const [activeTab, setActiveTab] = useState<ModalTab>(defaultTab);
+
+  // Catalog & Random System State
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState<string>('all');
+  const [catalogRank, setCatalogRank] = useState<string>('all');
+  const [addedNotice, setAddedNotice] = useState<string | null>(null);
 
   // Autonomous AI State
   const [autoCategory, setAutoCategory] = useState<string>('random');
@@ -199,7 +207,49 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd }) => {
     });
   };
 
-  // 3. Adopt Habit Preset
+  // 3. Adopt Catalog Quest
+  const handleAdoptCatalogQuest = (item: CatalogQuest) => {
+    sound.playLevelUp();
+    const lvlMultiplier = 1 + Math.min(2, ((player?.level || 1) - 1) * 0.05);
+    onAdd({
+      title: item.title,
+      description: item.description,
+      rank: item.rank,
+      category: item.category,
+      isDaily: true,
+      targetCount: item.targetCount,
+      currentCount: 0,
+      unit: item.unit,
+      rewards: {
+        xp: Math.round(item.xpReward * lvlMultiplier),
+        gold: Math.round(item.goldReward * lvlMultiplier),
+        essenceStones: item.essenceReward,
+        statPoints: item.statPointsReward,
+      },
+    });
+    setAddedNotice(`Misión "${item.title.slice(0, 30)}..." asignada al Sistema.`);
+    setTimeout(() => setAddedNotice(null), 3500);
+  };
+
+  // Roll 1 Random Mission from Catalog
+  const handleRollRandomQuest = () => {
+    sound.playLevelUp();
+    const randomQuest = getRandomSingleQuest(player?.level || 1);
+    onAdd(randomQuest);
+    setAddedNotice(`🎲 Misión aleatoria "${randomQuest.title.slice(0, 30)}..." agregada.`);
+    setTimeout(() => setAddedNotice(null), 3500);
+  };
+
+  // Roll Balanced 4-Missions Daily Routine
+  const handleRollBalancedRoutine = () => {
+    sound.playAwakening();
+    const routine = getRandomDailyQuests(4, player?.level || 1);
+    routine.forEach((q) => onAdd(q));
+    setAddedNotice(`⚡ ¡Rutina de 4 misiones diarias balanceadas asignadas!`);
+    setTimeout(() => setAddedNotice(null), 4000);
+  };
+
+  // Legacy preset adopt fallback
   const handleAdoptPreset = (preset: HabitPreset) => {
     sound.playLevelUp();
     onAdd({
@@ -315,8 +365,8 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd }) => {
                 : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-base">library_books</span>
-            <span>Catálogo</span>
+            <span className="material-symbols-outlined text-base">casino</span>
+            <span>Catálogo & Random</span>
           </button>
 
           <button
@@ -593,46 +643,177 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd }) => {
           </div>
         )}
 
-        {/* Tab 3: Preset Habits Catalog */}
+        {/* Tab 3: Preset Habits & Varied Catalog */}
         {activeTab === 'presets' && (
-          <div className="p-6 space-y-4 max-h-[460px] overflow-y-auto">
-            <p className="text-xs text-slate-400 font-medium">
-              Selecciona un hábito predeterminado para agregarlo a tus misiones diarias con 1 clic:
-            </p>
+          <div className="p-4 sm:p-6 space-y-4 max-h-[500px] overflow-y-auto">
+            {/* Quick Random Generators Header */}
+            <div className="p-3.5 bg-gradient-to-r from-amber-950/40 via-surface-card to-amber-950/20 border border-amber-500/30 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-400 text-lg">casino</span>
+                  <span className="text-white text-xs font-black uppercase tracking-wider font-display">
+                    Generador Aleatorio de Misiones
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+                  {DAILY_QUEST_CATALOG.length} Misiones en Catálogo
+                </span>
+              </div>
 
-            <div className="space-y-3">
-              {HABIT_PRESETS.map((preset) => (
-                <div
-                  key={preset.id}
-                  className="p-3.5 bg-surface-card border border-white/10 hover:border-primary/50 rounded-2xl transition-all flex items-center justify-between gap-3 group"
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Elige misiones pre-forjadas organizadas por estadísticas (Fuerza, Intelecto, Hábitos, Temple) o tira dados para asignar objetivos aleatorios inmediatos.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleRollRandomQuest}
+                  className="py-2.5 px-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md shadow-amber-600/30 active:scale-95 transition-all"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined text-xl">{preset.icon}</span>
+                  <span className="material-symbols-outlined text-base">casino</span>
+                  <span>1 Misión Aleatoria (1 Clic)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRollBalancedRoutine}
+                  className="py-2.5 px-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-primary text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md shadow-primary/30 active:scale-95 transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">bolt</span>
+                  <span>Rutina Diaria (4 Variadas)</span>
+                </button>
+              </div>
+
+              {addedNotice && (
+                <div className="p-2 bg-emerald-950/60 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-mono font-bold flex items-center gap-2 animate-fadeIn">
+                  <span className="material-symbols-outlined text-emerald-400 text-sm">check_circle</span>
+                  <span>{addedNotice}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Search & Category Filter Bar */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Buscar misión en el catálogo..."
+                    className="w-full bg-surface-dark border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                  <span className="material-symbols-outlined text-slate-500 text-base absolute left-2.5 top-2.5">
+                    search
+                  </span>
+                </div>
+
+                <select
+                  value={catalogRank}
+                  onChange={(e) => setCatalogRank(e.target.value)}
+                  className="bg-surface-dark border border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-300 font-mono focus:border-amber-400 focus:outline-none"
+                >
+                  <option value="all">Rango: Todos</option>
+                  <option value={Rank.S}>Rango S</option>
+                  <option value={Rank.A}>Rango A</option>
+                  <option value={Rank.B}>Rango B</option>
+                  <option value={Rank.C}>Rango C</option>
+                  <option value={Rank.D}>Rango D</option>
+                  <option value={Rank.E}>Rango E</option>
+                </select>
+              </div>
+
+              {/* Category chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                {[
+                  { id: 'all', label: 'Todas' },
+                  { id: 'STR', label: 'Fuerza (STR)' },
+                  { id: 'INT', label: 'Intelecto (INT)' },
+                  { id: 'VIT', label: 'Vitalidad (VIT)' },
+                  { id: 'AGI', label: 'Agilidad (AGI)' },
+                  { id: 'WIS', label: 'Sabiduría (WIS)' },
+                  { id: 'CHA', label: 'Carisma (CHA)' },
+                ].map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => {
+                      sound.playBeep(650, 0.02);
+                      setCatalogCategory(chip.id);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                      catalogCategory === chip.id
+                        ? 'bg-amber-500 text-black shadow-sm'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Catalog List */}
+            <div className="space-y-2.5">
+              {DAILY_QUEST_CATALOG.filter((item) => {
+                if (catalogCategory !== 'all' && item.attributeTarget !== catalogCategory) return false;
+                if (catalogRank !== 'all' && item.rank !== catalogRank) return false;
+                if (catalogSearch.trim()) {
+                  const q = catalogSearch.toLowerCase();
+                  return (
+                    item.title.toLowerCase().includes(q) ||
+                    item.description.toLowerCase().includes(q) ||
+                    item.attributeTarget.toLowerCase().includes(q)
+                  );
+                }
+                return true;
+              }).map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 bg-surface-card border border-white/10 hover:border-amber-500/40 rounded-2xl transition-all flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-xl">{item.icon}</span>
                     </div>
-                    <div>
-                      <h4 className="text-white text-xs font-bold font-display group-hover:text-primary transition-colors">
-                        {preset.title}
-                      </h4>
-                      <p className="text-slate-400 text-[11px] line-clamp-1 mt-0.5">
-                        {preset.description}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border font-mono ${
+                          item.rank === Rank.S ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                          item.rank === Rank.A ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' :
+                          item.rank === Rank.B ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' :
+                          'bg-slate-800 text-slate-300 border-white/10'
+                        }`}>
+                          {item.rank}
+                        </span>
+                        <h4 className="text-white text-xs font-bold font-display group-hover:text-amber-400 transition-colors truncate">
+                          {item.title}
+                        </h4>
+                      </div>
+
+                      <p className="text-slate-400 text-[11px] line-clamp-1 mt-1">
+                        {item.description}
                       </p>
-                      <div className="flex items-center gap-2 mt-1 text-[10px] font-mono">
-                        <span className="text-amber-400 font-bold">{preset.targetCount} {preset.unit}</span>
-                        <span className="text-slate-500">•</span>
-                        <span className="text-emerald-400">+{preset.xpReward} XP</span>
-                        <span className="text-slate-500">•</span>
-                        <span className="text-primary font-bold">+{preset.attributeTarget}</span>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] font-mono">
+                        <span className="text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">
+                          {item.targetCount} {item.unit}
+                        </span>
+                        <span className="text-emerald-400">+{item.xpReward} XP</span>
+                        <span className="text-yellow-400">+{item.goldReward} G</span>
+                        <span className="text-cyan-400">+{item.essenceReward} Esencias</span>
+                        <span className="text-primary font-bold">+{item.attributeTarget}</span>
                       </div>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handleAdoptPreset(preset)}
-                    className="px-3 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-white border border-primary/40 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all whitespace-nowrap active:scale-95"
+                    onClick={() => handleAdoptCatalogQuest(item)}
+                    className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/40 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 shrink-0"
                   >
-                    + Adoptar
+                    + Asignar
                   </button>
                 </div>
               ))}

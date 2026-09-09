@@ -45,33 +45,34 @@ export const MirrorShadowModal: React.FC<MirrorShadowModalProps> = ({
   const hpPct = Math.round((currentShadowHp / maxShadowHp) * 100);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain touch-pan-y">
       <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
 
-      <div className="relative w-full max-w-lg bg-surface-dark border-2 border-purple-500/40 rounded-3xl shadow-[0_0_60px_rgba(168,85,247,0.25)] overflow-hidden my-8 animate-modal flex flex-col">
+      <div className="relative w-full max-w-lg bg-surface-dark border-2 border-purple-500/40 rounded-2xl sm:rounded-3xl shadow-[0_0_60px_rgba(168,85,247,0.25)] overflow-hidden my-auto sm:my-6 animate-modal flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-purple-950/60 to-slate-900 border-b border-border-dark flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-purple-400 text-2xl">
+        <div className="px-4 py-3.5 sm:px-6 sm:py-4 bg-gradient-to-r from-slate-900 via-purple-950/60 to-slate-900 border-b border-border-dark flex items-center justify-between gap-3 sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="material-symbols-outlined text-purple-400 text-2xl shrink-0">
               theater_comedy
             </span>
-            <div>
-              <h3 className="text-white text-base font-black italic uppercase tracking-wider font-display">
+            <div className="min-w-0">
+              <h3 className="text-white text-sm sm:text-base font-black italic uppercase tracking-wider font-display truncate">
                 Duelo de la Sombra Reflejo
               </h3>
-              <p className="text-purple-300 text-[10px] font-mono">Enfrentamiento contra tu "Yo" de Ayer</p>
+              <p className="text-purple-300 text-[10px] font-mono truncate">Enfrentamiento contra tu "Yo" de Ayer</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/5"
+            className="min-h-[44px] min-w-[44px] text-slate-300 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 flex items-center justify-center transition-colors shrink-0"
+            aria-label="Cerrar"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto overscroll-contain touch-pan-y flex-1">
           {/* Visual VS Arena */}
           <div className="flex items-center justify-between gap-4 p-4 bg-black/40 rounded-2xl border border-white/5">
             {/* Player */}

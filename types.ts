@@ -335,6 +335,8 @@ export interface Player {
   equippedTitle?: string;
   avatarId?: string;
   avatarFrame?: string;
+  autoEvolveAvatar?: boolean;
+  evolutionTier?: number;
   hunterClass?: string;
   activeSagas?: string[];
   sagasProgress?: Record<string, number>;
