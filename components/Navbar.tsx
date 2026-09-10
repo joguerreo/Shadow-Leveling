@@ -47,34 +47,69 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-[#0b0c10]/90 backdrop-blur-xl border-b border-border-dark/80 z-50 flex items-center justify-between px-4 md:px-8">
-      {/* Brand & System Logo */}
-      <div 
-        className="flex items-center gap-3 cursor-pointer select-none"
-        onClick={() => handleNavClick('dashboard')}
-      >
-        <div className="size-8 rounded-lg bg-gradient-to-br from-primary to-accent p-1.5 flex items-center justify-center text-white shadow-md shadow-primary/20">
-          <span className="material-symbols-outlined text-lg">view_in_ar</span>
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-white text-xs font-black tracking-[0.25em] uppercase font-mono">
-              SYSTEM
-            </h1>
-            <span className="px-1.5 py-0.2 bg-primary/20 border border-primary/40 rounded text-[9px] font-black text-primary uppercase">
-              v2.0
+    <nav className="fixed top-0 left-0 right-0 h-16 bg-[#080a11]/95 backdrop-blur-2xl border-b border-cyan-500/20 z-50 flex items-center justify-between px-3 md:px-8 select-none shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+      {/* Brand / Mobile Hunter Profile Plate */}
+      <div className="flex items-center gap-2.5">
+        {/* On Mobile: Hunter Avatar Quick Plate */}
+        <div
+          onClick={() => {
+            sound.playBeep(560, 0.04);
+            onOpenProfileModal?.();
+          }}
+          className="md:hidden flex items-center gap-2 bg-gradient-to-r from-cyan-950/40 to-[#0e1322] border border-cyan-500/30 rounded-xl px-2 py-1 cursor-pointer active:scale-95 transition-transform"
+          title="Tocar para ver Perfil y Atributos del Cazador"
+        >
+          <div className="relative">
+            <HunterAvatar
+              avatarId={player.avatarId || 'monarch-shadow'}
+              frameId={player.avatarFrame || 'frame-e'}
+              size="sm"
+              showGlow
+              animated
+              className="size-8"
+            />
+            <span className="absolute -bottom-1 -right-1 px-1 bg-cyan-500 text-black text-[8px] font-mono font-black rounded shadow">
+              {player.rank}
             </span>
           </div>
-          <p className="text-slate-400 text-[10px] tracking-widest font-mono hidden sm:block">
-            SHADOW LEVELING
-          </p>
+          <div className="flex flex-col">
+            <span className="text-white text-[11px] font-black tracking-tight leading-none font-display">
+              LV.{player.level}
+            </span>
+            <span className="text-cyan-400 text-[8.5px] font-mono font-bold leading-none mt-0.5">
+              {combatPower.toLocaleString()} CP
+            </span>
+          </div>
+        </div>
+
+        {/* Desktop Brand Logo */}
+        <div 
+          className="hidden md:flex items-center gap-3 cursor-pointer select-none"
+          onClick={() => handleNavClick('dashboard')}
+        >
+          <div className="size-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 p-1.5 flex items-center justify-center text-white shadow-md shadow-cyan-500/30">
+            <span className="material-symbols-outlined text-lg">view_in_ar</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-white text-xs font-black tracking-[0.25em] uppercase font-mono">
+                SYSTEM
+              </h1>
+              <span className="px-1.5 py-0.2 bg-cyan-500/20 border border-cyan-400/40 rounded text-[9px] font-black text-cyan-300 uppercase font-mono">
+                SOLO
+              </span>
+            </div>
+            <p className="text-slate-400 text-[10px] tracking-widest font-mono">
+              SHADOW LEVELING
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Navigation Links (Desktop) */}
-      <div className="hidden md:flex items-center gap-1 bg-surface-dark/60 p-1 rounded-xl border border-white/5">
+      <div className="hidden md:flex items-center gap-1 bg-[#101422]/80 p-1 rounded-xl border border-cyan-500/20">
         {[
-          { id: 'dashboard' as const, name: 'Estado & Misiones', icon: 'person' },
+          { id: 'dashboard' as const, name: 'Estado', icon: 'person' },
           { id: 'dungeons' as const, name: 'Mazmorras', icon: 'hourglass_top' },
           { id: 'inventory' as const, name: 'Inventario', icon: 'inventory_2' },
           { id: 'shop' as const, name: 'Mercado', icon: 'storefront' },
@@ -93,9 +128,9 @@ const Navbar: React.FC<NavbarProps> = ({
               onClick={() => handleNavClick(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all relative ${
                 !unlocked
-                  ? 'opacity-55 hover:opacity-100 text-slate-500 hover:text-slate-300'
+                  ? 'opacity-40 text-slate-500'
                   : isActive
-                  ? 'bg-primary text-white system-glow shadow-sm'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/30'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
               title={!unlocked ? `Bloqueado hasta Nivel ${rule?.minLevel}` : undefined}
@@ -114,20 +149,44 @@ const Navbar: React.FC<NavbarProps> = ({
         })}
       </div>
 
-      {/* Header Resources, Tour, Auth & Stats */}
-      <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 shrink-0">
-        {/* Currencies Pill - Mobile compact */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 bg-surface-dark border border-border-dark px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs">
-          <div className="flex items-center gap-1" title="Gold Credits">
-            <span className="material-symbols-outlined text-yellow-400 text-sm">monetization_on</span>
-            <span className="text-white font-black text-[10px] sm:text-xs">{player.gold.toLocaleString()}</span>
-          </div>
-          <div className="w-px h-3 bg-white/10" />
-          <div className="flex items-center gap-1" title="Essence Stones">
-            <span className="material-symbols-outlined text-accent text-sm">diamond</span>
-            <span className="text-accent font-black text-[10px] sm:text-xs">{player.essenceStones}</span>
-          </div>
-        </div>
+      {/* Header Resources & Controls (Mobile Game Currency Bar) */}
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        {/* Gold Capsule */}
+        <button
+          onClick={() => handleNavClick('shop')}
+          className="flex items-center gap-1 bg-[#121624] hover:bg-[#191f33] border border-amber-500/30 px-2 py-1 rounded-lg text-xs transition-transform active:scale-95 touch-manipulation"
+          title="Oro acumulado. Toca para ir a la tienda."
+        >
+          <span className="material-symbols-outlined text-amber-400 text-sm">monetization_on</span>
+          <span className="text-amber-200 font-mono font-black text-[11px] sm:text-xs">
+            {player.gold.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-amber-500 font-bold leading-none">+</span>
+        </button>
+
+        {/* Essence Stones Capsule */}
+        <button
+          onClick={() => handleNavClick('shop')}
+          className="flex items-center gap-1 bg-[#121624] hover:bg-[#191f33] border border-cyan-500/30 px-2 py-1 rounded-lg text-xs transition-transform active:scale-95 touch-manipulation"
+          title="Piedras de Esencia. Toca para recargar o canjear."
+        >
+          <span className="material-symbols-outlined text-cyan-400 text-sm">diamond</span>
+          <span className="text-cyan-200 font-mono font-black text-[11px] sm:text-xs">
+            {player.essenceStones}
+          </span>
+          <span className="text-[10px] text-cyan-500 font-bold leading-none">+</span>
+        </button>
+
+        {/* Sound FX Toggle */}
+        <button
+          onClick={onToggleSound}
+          className="size-7 sm:size-8 rounded-lg bg-[#121624] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95"
+          title={player.soundEnabled ? 'Silenciar Efectos de Audio' : 'Activar Sonido'}
+        >
+          <span className="material-symbols-outlined text-sm sm:text-base">
+            {player.soundEnabled ? 'volume_up' : 'volume_off'}
+          </span>
+        </button>
 
         {/* Guided Tour Trigger Button */}
         <button
@@ -135,77 +194,23 @@ const Navbar: React.FC<NavbarProps> = ({
             sound.playBeep(540, 0.04);
             onStartTour?.();
           }}
-          className="size-7 sm:size-8 rounded-lg bg-surface-dark border border-border-dark flex items-center justify-center text-primary hover:text-white transition-all hover:border-primary/50"
+          className="hidden sm:flex size-8 rounded-lg bg-[#121624] border border-white/10 items-center justify-center text-cyan-400 hover:text-white transition-all"
           title="Guía del Sistema: Aprende cómo subir de nivel"
         >
           <span className="material-symbols-outlined text-base">help_outline</span>
         </button>
 
-        {/* Sound Toggle */}
-        <button
-          onClick={onToggleSound}
-          className="size-7 sm:size-8 rounded-lg bg-surface-dark border border-border-dark flex items-center justify-center text-slate-400 hover:text-white transition-all hover:border-primary/50"
-          title={player.soundEnabled ? 'Silenciar Efectos de Audio' : 'Activar Sonido del Sistema'}
-        >
-          <span className="material-symbols-outlined text-base">
-            {player.soundEnabled ? 'volume_up' : 'volume_off'}
-          </span>
-        </button>
-
-        {/* Supabase Cloud Sync / Auth Trigger */}
-        {currentUser ? (
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs"
-            title={`Conectado a la Base de Datos (${currentUser.email}). Haz clic en el icono para forzar sincronización total.`}
-          >
-            <button
-              onClick={onManualSync}
-              disabled={isSyncing}
-              className="flex items-center gap-1 hover:text-emerald-200 transition-colors"
-              title="Sincronizar el 100% de datos con la Base de Datos ahora"
-            >
-              <span className={`material-symbols-outlined text-sm text-emerald-400 ${isSyncing ? 'animate-spin' : 'hover:scale-110'}`}>
-                {isSyncing ? 'sync' : 'cloud_done'}
-              </span>
-              <span className="text-[10px] font-mono text-emerald-300 font-bold hidden sm:inline">
-                {isSyncing ? 'GUARDANDO...' : 'BDD (100%)'}
-              </span>
-            </button>
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="ml-1 pl-1 border-l border-emerald-500/30 text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
-                title="Cerrar sesión"
-              >
-                <span className="material-symbols-outlined text-xs">logout</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              sound.playBeep(580, 0.04);
-              onOpenAuth?.();
-            }}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/50 hover:border-primary rounded-xl text-xs text-primary hover:text-white transition-all shadow-sm"
-            title="Conectar con Supabase (Base de datos y Login)"
-          >
-            <span className="material-symbols-outlined text-sm">login</span>
-            <span className="text-[10px] font-bold hidden sm:inline font-mono">LOGIN</span>
-          </button>
-        )}
-
-        {/* Hunter Badge / Profile Trigger with Mobile CP display */}
+        {/* Desktop Hunter Profile Capsule */}
         <div 
           onClick={() => {
             sound.playBeep(560, 0.04);
             onOpenProfileModal?.();
           }}
-          className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-white/10 cursor-pointer group select-none"
+          className="hidden md:flex items-center gap-2 pl-2 border-l border-white/10 cursor-pointer group select-none"
           title="Abrir Perfil del Cazador"
         >
-          <div className="hidden sm:flex flex-col items-end">
-            <span className="text-[10px] font-black text-primary uppercase tracking-wider group-hover:text-accent transition-colors">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider group-hover:text-cyan-300 transition-colors">
               {player.rank} • LVL {player.level}
             </span>
             <span className="text-[9px] font-mono text-slate-400">
@@ -223,6 +228,8 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
+      {/* Holographic Cyan Bottom Line */}
+      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
     </nav>
   );
 };

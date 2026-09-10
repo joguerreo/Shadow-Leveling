@@ -226,7 +226,7 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
                       onTriggerInfraction(pact.id);
                       sound.speakPactMotivationalPrompt(pact.id, pact.customVoicePrompt);
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 active:scale-95 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-red-700/30 touch-manipulation min-h-[44px]"
+                    className="btn-gacha btn-gacha-danger w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs min-h-[44px]"
                     title="Registrar que has caído en este mal hábito para aplicar la penalización del Sistema"
                   >
                     <span className="material-symbols-outlined text-sm">warning</span>

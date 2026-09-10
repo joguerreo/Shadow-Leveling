@@ -182,3 +182,109 @@
   transform: scale(0.96);
   filter: brightness(1.2);
 }
+
+/* =========================================================
+   STYLE 1: ACTION MOBILE / GACHA UI DESIGN SYSTEM
+   ========================================================= */
+
+/* --- 3D Tactile Gacha Action Buttons --- */
+.btn-gacha {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.08s ease, border-width 0.08s ease, box-shadow 0.08s ease, filter 0.1s ease;
+  overflow: hidden;
+}
+
+.btn-gacha:active {
+  transform: translateY(3px);
+  border-bottom-width: 0px !important;
+  box-shadow: none !important;
+  filter: brightness(1.15);
+}
+
+/* Cyan / Electric Blue Action Button (Primary Attack / Confirm) */
+.btn-gacha-cyan {
+  background: linear-gradient(180deg, #00d2ff 0%, #0066ff 100%);
+  color: #ffffff;
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  border-bottom: 4px solid #003399;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Royal Amethyst Button (Skills & Sagas) */
+.btn-gacha-purple {
+  background: linear-gradient(180deg, #b040ff 0%, #6600cc 100%);
+  color: #ffffff;
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+  border-bottom: 4px solid #3d007a;
+  box-shadow: 0 4px 14px rgba(176, 64, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Crimson Danger Button (Red Gate / Boss / Infractions) */
+.btn-gacha-danger {
+  background: linear-gradient(180deg, #ff2a55 0%, #cc0033 100%);
+  color: #ffffff;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  border-bottom: 4px solid #66001a;
+  box-shadow: 0 4px 14px rgba(255, 42, 85, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Gold / Amber Loot Button (Claim Rewards) */
+.btn-gacha-gold {
+  background: linear-gradient(180deg, #ffd000 0%, #ff8800 100%);
+  color: #1a0f00;
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  border-bottom: 4px solid #994d00;
+  box-shadow: 0 4px 14px rgba(255, 170, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Ghost Obsidian Button (Secondary / Cancel) */
+.btn-gacha-dark {
+  background: linear-gradient(180deg, #1c2233 0%, #10141f 100%);
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 4px solid #090b12;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.btn-gacha-dark:hover {
+  color: #ffffff;
+}
+
+/* Gacha Chamfered Corner Panel (Tech Armor Frame) */
+.gacha-panel {
+  background: linear-gradient(145deg, rgba(16, 20, 32, 0.95) 0%, rgba(9, 11, 18, 0.98) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Diagonal Light Sweep Effect */
+@keyframes gachaSweep {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  35%, 100% { transform: translateX(200%) skewX(-20deg); }
+}
+
+.gacha-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: gachaSweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}

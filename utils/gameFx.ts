@@ -2,13 +2,34 @@ import { sound } from './sound';
 import { triggerCombatText } from '../components/FloatingTextOverlay';
 export { triggerCombatText };
 
+export type HapticPreset = 'tap' | 'light' | 'impact' | 'heavy' | number | number[];
+
 /**
  * Triggers physical mobile vibration if supported
  */
-export function triggerHaptic(pattern: number | number[] = [20, 30, 20]) {
+export function triggerHaptic(pattern: HapticPreset = 'tap') {
   if (typeof window !== 'undefined' && 'vibrate' in navigator) {
     try {
-      navigator.vibrate(pattern);
+      if (typeof pattern === 'string') {
+        switch (pattern) {
+          case 'tap':
+            navigator.vibrate(15);
+            break;
+          case 'light':
+            navigator.vibrate(25);
+            break;
+          case 'impact':
+            navigator.vibrate([30, 40, 30]);
+            break;
+          case 'heavy':
+            navigator.vibrate([50, 70, 90]);
+            break;
+          default:
+            navigator.vibrate(20);
+        }
+      } else {
+        navigator.vibrate(pattern);
+      }
     } catch {}
   }
 }

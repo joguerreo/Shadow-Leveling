@@ -297,41 +297,41 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose}></div>
 
-      <div className="relative w-full max-w-xl bg-surface-dark border border-primary/40 rounded-3xl shadow-2xl overflow-hidden my-8 animate-modal">
+      <div className="relative w-full max-w-xl bg-[#090c14]/98 border-2 border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden my-4 sm:my-6 animate-modal gacha-panel">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/20 via-accent/10 to-transparent p-6 border-b border-white/5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-cyan-950/60 via-blue-950/40 to-transparent p-4 sm:p-5 border-b border-cyan-500/20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary text-2xl animate-pulse">auto_awesome</span>
+            <span className="material-symbols-outlined text-cyan-400 text-2xl animate-pulse">auto_awesome</span>
             <div>
-              <h3 className="text-white text-lg font-black italic tracking-tighter uppercase font-display">
-                Generador de Misiones del Sistema
+              <h3 className="text-white text-base sm:text-lg font-black italic tracking-tighter uppercase font-display">
+                Terminal de Misiones del Sistema
               </h3>
-              <p className="text-slate-400 text-xs font-medium">
-                Forja hábitos y misiones reales con IA Autónoma, Oráculo o Manual
+              <p className="text-slate-400 text-xs font-mono">
+                IA Autónoma • Catálogo de Hábitos • Forja Personalizada
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="text-slate-500 hover:text-white p-1 transition-colors"
+            className="text-slate-400 hover:text-white p-1 transition-colors rounded-lg bg-white/5 active:scale-95"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* 4 Mode Selector Tabs */}
-        <div className="px-4 pt-3 pb-2 grid grid-cols-4 gap-1.5 border-b border-white/5 bg-black/40">
+        <div className="px-3 pt-3 pb-2 grid grid-cols-4 gap-1.5 border-b border-cyan-500/15 bg-black/50">
           <button
             onClick={() => {
               sound.playBeep(520, 0.04);
               setActiveTab('autonomous_ai');
             }}
-            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 active:scale-95 touch-manipulation ${
               activeTab === 'autonomous_ai'
-                ? 'bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-primary/30'
+                ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30'
                 : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
@@ -344,14 +344,14 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
               sound.playBeep(520, 0.04);
               setActiveTab('custom_ai');
             }}
-            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 active:scale-95 touch-manipulation ${
               activeTab === 'custom_ai'
-                ? 'bg-gradient-to-br from-indigo-600 to-primary text-white shadow-lg shadow-primary/30'
+                ? 'bg-gradient-to-br from-indigo-600 to-cyan-500 text-white shadow-lg shadow-indigo-600/30'
                 : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
             <span className="material-symbols-outlined text-base">psychology</span>
-            <span>Tu Meta + IA</span>
+            <span>Meta + IA</span>
           </button>
 
           <button
@@ -359,14 +359,14 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
               sound.playBeep(520, 0.04);
               setActiveTab('presets');
             }}
-            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 active:scale-95 touch-manipulation ${
               activeTab === 'presets'
-                ? 'bg-gradient-to-br from-amber-600 to-amber-500 text-white shadow-lg shadow-amber-600/30'
+                ? 'bg-gradient-to-br from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30'
                 : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
             <span className="material-symbols-outlined text-base">casino</span>
-            <span>Catálogo & Random</span>
+            <span>Catálogo</span>
           </button>
 
           <button
@@ -374,9 +374,9 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
               sound.playBeep(520, 0.04);
               setActiveTab('manual');
             }}
-            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 active:scale-95 touch-manipulation ${
               activeTab === 'manual'
-                ? 'bg-primary text-white system-glow'
+                ? 'bg-gradient-to-br from-cyan-600 to-cyan-400 text-white shadow-lg shadow-cyan-600/30'
                 : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
@@ -645,7 +645,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
 
         {/* Tab 3: Preset Habits & Varied Catalog */}
         {activeTab === 'presets' && (
-          <div className="p-4 sm:p-6 space-y-4 max-h-[500px] overflow-y-auto">
+          <div className="p-4 sm:p-6 space-y-4 max-h-[65vh] overflow-y-auto">
             {/* Quick Random Generators Header */}
             <div className="p-3.5 bg-gradient-to-r from-amber-950/40 via-surface-card to-amber-950/20 border border-amber-500/30 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
@@ -754,7 +754,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
             </div>
 
             {/* Catalog List */}
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {DAILY_QUEST_CATALOG.filter((item) => {
                 if (catalogCategory !== 'all' && item.attributeTarget !== catalogCategory) return false;
                 if (catalogRank !== 'all' && item.rank !== catalogRank) return false;
@@ -770,51 +770,67 @@ const QuestModal: React.FC<QuestModalProps> = ({ player, onClose, onAdd, default
               }).map((item) => (
                 <div
                   key={item.id}
-                  className="p-3.5 bg-surface-card border border-white/10 hover:border-amber-500/40 rounded-2xl transition-all flex items-center justify-between gap-3 group"
+                  className="p-4 bg-[#101422] border border-cyan-500/20 hover:border-amber-500/50 rounded-2xl transition-all space-y-3 group shadow-md shadow-black/40"
                 >
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-                      <span className="material-symbols-outlined text-xl">{item.icon}</span>
-                    </div>
+                  {/* Top Row: Icon, Ranks, Title & Action Button */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="size-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 shadow-sm shadow-amber-500/10">
+                        <span className="material-symbols-outlined text-xl">{item.icon}</span>
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border font-mono ${
-                          item.rank === Rank.S ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
-                          item.rank === Rank.A ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' :
-                          item.rank === Rank.B ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' :
-                          'bg-slate-800 text-slate-300 border-white/10'
-                        }`}>
-                          {item.rank}
-                        </span>
-                        <h4 className="text-white text-xs font-bold font-display group-hover:text-amber-400 transition-colors truncate">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border font-mono ${
+                            item.rank === Rank.S ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                            item.rank === Rank.A ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' :
+                            item.rank === Rank.B ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' :
+                            'bg-slate-800 text-slate-300 border-white/10'
+                          }`}>
+                            {item.rank}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                            +{item.attributeTarget}
+                          </span>
+                        </div>
+                        <h4 className="text-white text-sm font-bold font-display group-hover:text-amber-300 transition-colors leading-snug break-words">
                           {item.title}
                         </h4>
                       </div>
-
-                      <p className="text-slate-400 text-[11px] line-clamp-1 mt-1">
-                        {item.description}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] font-mono">
-                        <span className="text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">
-                          {item.targetCount} {item.unit}
-                        </span>
-                        <span className="text-emerald-400">+{item.xpReward} XP</span>
-                        <span className="text-yellow-400">+{item.goldReward} G</span>
-                        <span className="text-cyan-400">+{item.essenceReward} Esencias</span>
-                        <span className="text-primary font-bold">+{item.attributeTarget}</span>
-                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAdoptCatalogQuest(item)}
+                      className="btn-gacha btn-gacha-gold px-3.5 py-2 text-xs rounded-xl shrink-0 active:scale-95 touch-manipulation"
+                      title="Asignar esta misión a tus misiones activas"
+                    >
+                      + Asignar
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAdoptCatalogQuest(item)}
-                    className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/40 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 shrink-0"
-                  >
-                    + Asignar
-                  </button>
+                  {/* Full, completely visible description without any line-clamp */}
+                  <div className="bg-[#080b12] border border-white/5 rounded-xl p-2.5">
+                    <p className="text-slate-200 text-xs leading-relaxed break-words font-normal">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* Rewards & Target Metrics Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-[10.5px] font-mono">
+                    <div className="flex items-center gap-1.5 bg-amber-400/10 text-amber-300 font-bold px-2 py-1 rounded-lg border border-amber-400/25">
+                      <span className="material-symbols-outlined text-xs">flag</span>
+                      <span>Meta: {item.targetCount} {item.unit}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 text-slate-300 font-semibold">
+                      <span className="text-emerald-400 font-bold">+{item.xpReward} XP</span>
+                      <span className="text-amber-400 font-bold">+{item.goldReward} G</span>
+                      {item.essenceReward > 0 && (
+                        <span className="text-cyan-400 font-bold">+{item.essenceReward} Gemas</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

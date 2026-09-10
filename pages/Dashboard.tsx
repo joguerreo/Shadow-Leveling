@@ -588,10 +588,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                   sound.playBeep(680, 0.05);
                   onAddBalancedRoutine();
                 }}
-                className="px-3 py-2 bg-[#211b34] hover:bg-[#30254c] border border-purple-500/30 hover:border-purple-400 text-purple-300 hover:text-white text-xs font-mono font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-black/40"
+                className="btn-gacha btn-gacha-purple px-3 py-2 text-xs rounded-xl"
                 title="Cargar una rutina balanceada de 4 misiones aleatorias variadas"
               >
-                <span className="material-symbols-outlined text-sm text-purple-400">bolt</span>
+                <span className="material-symbols-outlined text-sm">bolt</span>
                 <span>⚡ Rutina 4X</span>
               </button>
             )}
@@ -601,15 +601,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                 sound.playBeep(450, 0.08);
                 onOpenEmergencyModal?.();
               }}
-              className="px-3.5 py-2 bg-red-950/60 hover:bg-red-900/80 border border-red-600/50 text-red-300 hover:text-white text-xs font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-red-950/40"
+              className="btn-gacha btn-gacha-danger px-3.5 py-2 text-xs rounded-xl"
             >
-              <span className="material-symbols-outlined text-sm text-red-400 animate-pulse">crisis_alert</span>
+              <span className="material-symbols-outlined text-sm animate-pulse">crisis_alert</span>
               Puerta Roja
             </button>
 
             <button
               onClick={onOpenQuestModal}
-              className="px-4 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary hover:to-primary text-white text-xs font-black uppercase tracking-wider rounded-xl system-glow flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/30"
+              className="btn-gacha btn-gacha-cyan gacha-sheen px-4 py-2 text-xs rounded-xl"
             >
               <span className="material-symbols-outlined text-sm">auto_stories</span>
               Misiones / Catálogo
@@ -681,17 +681,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               return (
                 <div
                   key={quest.id}
-                  className={`group p-5 bg-surface-dark border rounded-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                  className={`group p-4 sm:p-5 gacha-panel rounded-2xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden ${
                     quest.completed
-                      ? 'border-slate-800/80 bg-[#12161f]/50 opacity-75'
-                      : 'border-border-dark hover:border-primary/50 hover:bg-white/[0.02]'
+                      ? 'opacity-65 border-slate-800/80 bg-[#0d1017]'
+                      : 'border-cyan-500/25 hover:border-cyan-400/60 shadow-lg shadow-black/60'
                   }`}
                 >
-                  <div className="flex items-start md:items-center gap-4 flex-1">
+                  <div className="flex items-start md:items-center gap-3.5 sm:gap-4 flex-1">
                     {/* Checkbox Trigger with Game Combat Feedback */}
                     <button
                       onClick={(e) => {
                         if (!quest.completed) {
+                          triggerHaptic('impact');
                           const rect = e.currentTarget.getBoundingClientRect();
                           const xpGain = quest.rewards?.xp ?? 50;
                           const goldGain = quest.rewards?.gold ?? 10;
@@ -712,10 +713,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                       }}
                       onMouseEnter={() => sound.playHover()}
                       disabled={quest.completed}
-                      className={`size-11 shrink-0 border-2 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+                      className={`size-11 sm:size-12 shrink-0 rounded-xl flex items-center justify-center transition-all touch-manipulation active:scale-90 ${
                         quest.completed
-                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                          : 'border-primary/40 text-primary hover:bg-primary/20 hover:border-primary system-glow'
+                          ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                          : 'btn-gacha btn-gacha-cyan'
                       }`}
                     >
                       <span className="material-symbols-outlined font-black text-xl">
