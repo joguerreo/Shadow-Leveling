@@ -345,7 +345,12 @@ export function checkDailyReset(
     }
 
     let newStreak = player.streakDays;
-    if (diffDays === 1) {
+    const isTruceActive = !!player.truceActive && (!player.truceExpiresAt || new Date(player.truceExpiresAt).getTime() > Date.now());
+
+    if (isTruceActive) {
+      // Escudo del Monarca: La racha se preserva intacta durante la tregua de salud/descanso
+      newStreak = player.streakDays;
+    } else if (diffDays === 1) {
       if (allDailiesCompleted) {
         newStreak += 1;
       } else {
@@ -354,6 +359,9 @@ export function checkDailyReset(
     } else if (diffDays > 1) {
       newStreak = 0;
     }
+
+    // Comprobar si la tregua expiró
+    const truceStillActive = isTruceActive && (player.truceExpiresAt ? new Date(player.truceExpiresAt).getTime() > Date.now() : true);
 
     // Reset daily quests
     const resetQuests = quests.map((q) => {
@@ -388,6 +396,7 @@ export function checkDailyReset(
       streakDays: newStreak,
       lastActiveDate: todayStr,
       forbiddenPacts: updatedPacts,
+      truceActive: truceStillActive,
     };
 
     saveStoredPlayer(updatedPlayer);

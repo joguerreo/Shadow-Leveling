@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player, Quest, QuestCategory, SystemLog, Attribute, ForbiddenPact } from '../types';
 import { calculateCombatPower, getEffectiveAttributes } from '../utils/calculator';
 import { sound } from '../utils/sound';
+import { triggerGameImpact, triggerCombatText, triggerHaptic } from '../utils/gameFx';
 import OracleEvaluationModal from '../components/OracleEvaluationModal';
 import { HunterAvatar } from '../components/avatars/HunterAvatar';
 import { resolvePlayerAvatar } from '../utils/avatarEvolution';
@@ -31,6 +32,7 @@ interface DashboardProps {
   onAddCustomPact?: (pact: Omit<ForbiddenPact, 'id' | 'cleanStreakDays' | 'lastInfractionAt' | 'totalInfractions'>) => void;
   onTogglePactActive?: (pactId: string) => void;
   onForceDailyReset?: () => void;
+  onOpenTruceModal?: () => void;
 }
 
 const ATTR_METADATA_FALLBACK: Record<'str' | 'int' | 'vit' | 'agi' | 'wis' | 'cha', { name: string; code: string; icon: string; color: string; bonusText: string }> = {
@@ -66,6 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onAddCustomPact,
   onTogglePactActive,
   onForceDailyReset,
+  onOpenTruceModal,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -81,6 +84,15 @@ const Dashboard: React.FC<DashboardProps> = ({
   const maxHp = player.maxHp ?? 100;
   const currentMp = player.mp ?? 300;
   const maxMp = player.maxMp ?? 300;
+
+  // Ghost HP bar (fighting game style damage chunk lag)
+  const [ghostHp, setGhostHp] = useState<number>(currentHp);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setGhostHp(currentHp);
+    }, 550);
+    return () => clearTimeout(timer);
+  }, [currentHp]);
 
   // Live countdown to midnight (00:00:00)
   useEffect(() => {
@@ -161,8 +173,38 @@ const Dashboard: React.FC<DashboardProps> = ({
         </button>
       </div>
 
+      {/* Truce Shield Active Banner */}
+      {player.truceActive && (
+        <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/50 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl shadow-amber-500/10 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 animate-pulse">
+              <span className="material-symbols-outlined text-2xl">shield</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-white text-xs sm:text-sm font-black uppercase tracking-wider font-display">
+                  ESCUDO DE TREGUA DEL MONARCA DESPLEGADO
+                </h4>
+                <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-black rounded uppercase">
+                  Protegido
+                </span>
+              </div>
+              <p className="text-slate-300 text-xs mt-0.5">
+                {player.truceReason ? `Motivo: «${player.truceReason}» • ` : ''}Tus rachas de misiones y salud están blindadas contra penalizaciones hoy.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenTruceModal}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase transition-all whitespace-nowrap self-end sm:self-center active:scale-95"
+          >
+            Gestionar Escudo
+          </button>
+        </div>
+      )}
+
       {/* Hunter Status Banner (Ultra-Optimized Mobile & Desktop) */}
-      <section className="bg-surface-dark border border-border-dark rounded-xl sm:rounded-2xl p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden group">
+      <section className="hud-card rounded-xl sm:rounded-2xl p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity">
           <span className="material-symbols-outlined text-[130px]">military_tech</span>
         </div>
@@ -235,6 +277,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       {player.lifestyleArchetype === 'guardian' ? '🛡️' : player.lifestyleArchetype === 'scholar' ? '🧠' : player.lifestyleArchetype === 'shadow' ? '⚡' : '👑'}
                     </span>
                   </button>
+
+                  {/* Truce Shield Pill Button */}
+                  <button
+                    onClick={onOpenTruceModal}
+                    className={`px-2 py-0.5 rounded border text-[9px] font-mono font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                      player.truceActive
+                        ? 'bg-amber-500 text-black border-amber-400 font-black shadow-sm shadow-amber-500/30 animate-pulse'
+                        : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
+                    }`}
+                    title="Modo Tregua: Pausa de salud o viaje para proteger racha y HP"
+                  >
+                    <span className="material-symbols-outlined text-[11px]">shield</span>
+                    <span>{player.truceActive ? '🛡️ Tregua Activa' : 'Modo Tregua'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -270,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* HP Bar */}
+            {/* HP Bar with Ghost Damage Indicator */}
             <div className="flex flex-col gap-0.5">
               <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
                 <span className="font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
@@ -281,12 +337,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                   {currentHp} / {maxHp} HP
                 </span>
               </div>
-              <div className="h-2 sm:h-2.5 bg-slate-900 rounded-full p-0.5 border border-white/10 shadow-inner">
+              <div className="h-2.5 sm:h-3 bg-slate-950 rounded-full p-0.5 border border-white/10 shadow-inner relative overflow-hidden">
+                {/* Staggered trailing ghost bar */}
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
+                  className="h-full rounded-full bg-red-800/80 ghost-bar-transition absolute left-0.5 top-0.5"
+                  style={{ width: `${Math.min(100, (ghostHp / maxHp) * 100)}%` }}
+                />
+                {/* Active real-time bar */}
+                <div
+                  className={`h-full rounded-full instant-bar-transition relative z-10 ${
                     currentHp <= 25
-                      ? 'bg-gradient-to-r from-red-600 to-rose-500 shadow-sm shadow-red-500/50 animate-pulse'
-                      : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-sm shadow-emerald-500/50'
+                      ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600 shadow-sm shadow-red-500/50 animate-pulse'
+                      : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 shadow-sm shadow-emerald-500/50'
                   }`}
                   style={{ width: `${Math.min(100, (currentHp / maxHp) * 100)}%` }}
                 />
@@ -391,7 +453,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   {player.statPoints > 0 && (
                     <button
-                      onClick={() => onAllocateStat(attrKey)}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        triggerGameImpact('level_up', `+1 ${attrCode.toUpperCase()}`, {
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 10,
+                        });
+                        onAllocateStat(attrKey);
+                      }}
+                      onMouseEnter={() => sound.playHover()}
                       className="size-5 sm:size-6 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm shadow-emerald-500/40"
                       title={`+1 a ${attrName}`}
                     >
@@ -618,14 +688,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                   }`}
                 >
                   <div className="flex items-start md:items-center gap-4 flex-1">
-                    {/* Checkbox Trigger */}
+                    {/* Checkbox Trigger with Game Combat Feedback */}
                     <button
-                      onClick={() => !quest.completed && onCompleteQuest(quest.id)}
+                      onClick={(e) => {
+                        if (!quest.completed) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const xpGain = quest.rewards?.xp ?? 50;
+                          const goldGain = quest.rewards?.gold ?? 10;
+                          triggerGameImpact('loot', `+${xpGain} XP`, {
+                            x: rect.left + rect.width / 2,
+                            y: rect.top - 10,
+                          });
+                          if (goldGain > 0) {
+                            setTimeout(() => {
+                              triggerCombatText(`+${goldGain} 🟡`, 'gold', {
+                                x: rect.left + rect.width / 2 + 15,
+                                y: rect.top - 20,
+                              });
+                            }, 180);
+                          }
+                          onCompleteQuest(quest.id);
+                        }
+                      }}
+                      onMouseEnter={() => sound.playHover()}
                       disabled={quest.completed}
-                      className={`size-11 shrink-0 border-2 rounded-xl flex items-center justify-center transition-all ${
+                      className={`size-11 shrink-0 border-2 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
                         quest.completed
                           ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                          : 'border-primary/40 text-primary hover:bg-primary/20 hover:border-primary'
+                          : 'border-primary/40 text-primary hover:bg-primary/20 hover:border-primary system-glow'
                       }`}
                     >
                       <span className="material-symbols-outlined font-black text-xl">

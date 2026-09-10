@@ -1,4 +1,43 @@
-import { Rank, Player, Quest, QuestCategory, Item, Dungeon, ShopItem, ShadowSoldier, ShadowExpedition, ActivityDay, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, ForbiddenPact } from './types';
+import { Rank, Player, Quest, QuestCategory, Item, Dungeon, ShopItem, ShadowSoldier, ShadowExpedition, ActivityDay, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, ForbiddenPact, RealLifeReward } from './types';
+
+export const INITIAL_REAL_LIFE_REWARDS: RealLifeReward[] = [
+  {
+    id: 'reward_gaming',
+    title: '1 Hora de Videojuegos / Serie sin Culpa',
+    description: 'Tiempo libre puro. Has cumplido tus misiones de cazador y has ganado tu derecho al ocio sin remordimientos.',
+    costGold: 500,
+    icon: 'sports_esports',
+    timesClaimed: 0,
+    lastClaimedAt: null,
+  },
+  {
+    id: 'reward_movie',
+    title: 'Salida al Cine o Noche de Película & Snacks',
+    description: 'Boleto para disfrutar de una película elegida por ti como premio a tu consistencia y disciplina.',
+    costGold: 1200,
+    icon: 'movie',
+    timesClaimed: 0,
+    lastClaimedAt: null,
+  },
+  {
+    id: 'reward_cheat_meal',
+    title: 'Cena Especial / Comida Favorita Libre',
+    description: 'Una comida en tu restaurante o platillo preferido celebrando tu progreso sin perder el ritmo.',
+    costGold: 1800,
+    icon: 'restaurant',
+    timesClaimed: 0,
+    lastClaimedAt: null,
+  },
+  {
+    id: 'reward_personal_gift',
+    title: 'Comprar ese Libro o Accesorio Deseado',
+    description: 'Invertir en tu conocimiento, pasatiempo o entrenamiento con una compra que has venido postergando.',
+    costGold: 2500,
+    icon: 'menu_book',
+    timesClaimed: 0,
+    lastClaimedAt: null,
+  },
+];
 
 export const INITIAL_FORBIDDEN_PACTS: ForbiddenPact[] = [
   {
@@ -211,7 +250,10 @@ export const INITIAL_PLAYER: Player = {
   maxHp: 100,
   gameDifficulty: 'hunter',
   lifestyleArchetype: 'monarch',
-  forbiddenPacts: INITIAL_FORBIDDEN_PACTS
+  forbiddenPacts: INITIAL_FORBIDDEN_PACTS,
+  customRewards: INITIAL_REAL_LIFE_REWARDS,
+  truceActive: false,
+  truceExpiresAt: null,
 };
 
 export const INITIAL_QUESTS: Quest[] = [

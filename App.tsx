@@ -24,6 +24,9 @@ import MirrorShadowModal from './components/MirrorShadowModal';
 import HunterLicenseModal from './components/HunterLicenseModal';
 import AuthModal from './components/AuthModal';
 import SystemTourModal from './components/SystemTourModal';
+import TruceModal from './components/TruceModal';
+import { FloatingTextOverlay, triggerCombatText } from './components/FloatingTextOverlay';
+import { triggerGameImpact } from './utils/gameFx';
 import { 
   onHunterAuthStateChange, 
   signOutHunter, 
@@ -36,7 +39,7 @@ import {
   isSupabaseConfigured
 } from './utils/supabase';
 
-import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport, ForbiddenPact } from './types';
+import { Player, Quest, Item, Dungeon, ShopItem, SystemLog, ShadowExpedition, HunterSkill, HunterAchievement, WorldBoss, HunterSaga, WeeklyAuditReport, ForbiddenPact, RealLifeReward } from './types';
 import {
   loadStoredPlayer,
   saveStoredPlayer,
@@ -64,6 +67,7 @@ import {
 import { INITIAL_PLAYER, INITIAL_QUESTS, INITIAL_DUNGEONS, INITIAL_SHADOW_EXPEDITIONS, INITIAL_SKILLS, INITIAL_ACHIEVEMENTS, INITIAL_WORLD_BOSSES } from './constants';
 import { getRankFromLevel, getTitleFromLevel } from './utils/calculator';
 import { sound } from './utils/sound';
+import { getPactAudioProfile } from './utils/pactAudioProfiles';
 import { getRandomDailyQuests } from './utils/dailyQuestCatalog';
 import { sanitizePlayerData } from './utils/playerSanitizer';
 import confetti from 'canvas-confetti';
@@ -95,6 +99,7 @@ const App: React.FC = () => {
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isTourModalOpen, setIsTourModalOpen] = useState<boolean>(false);
+  const [isTruceModalOpen, setIsTruceModalOpen] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [systemModal, setSystemModal] = useState<SystemModalData>({
@@ -579,13 +584,37 @@ const App: React.FC = () => {
 
   // Pactos Prohibidos (Anti-Hábitos) Handlers
   const handleTriggerPactInfraction = (pactId: string) => {
-    sound.playPactViolation();
+    sound.playPactViolation(pactId);
     const targetPact = (player.forbiddenPacts || []).find((p) => p.id === pactId);
     if (!targetPact) return;
+
+    // Si el Escudo de Tregua está activo, mitiga las consecuencias
+    const isTruceActive = !!player.truceActive && (!player.truceExpiresAt || new Date(player.truceExpiresAt).getTime() > Date.now());
+    if (isTruceActive) {
+      sound.playBeep(540, 0.1);
+      setSystemModal({
+        isOpen: true,
+        title: '🛡️ ESCUDO DE TREGUA ACTIVO',
+        subtitle: `Has registrado un tropiezo en «${targetPact.title}», pero el Escudo del Monarca está desplegado.\n\nEl Sistema suspende el daño a tu salud (-0 HP) y conserva tus rachas limpias mientras te recuperas del reposo justificado («${player.truceReason || 'Reposo'}»).`,
+        type: 'info',
+        onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+      });
+      addLog(`[ESCUDO DE TREGUA] Incidencia en «${targetPact.title}» mitigada por protección activa.`, 'system');
+      return;
+    }
+
+    const pactProfile = getPactAudioProfile(pactId);
 
     const multiplier = player.gameDifficulty === 'casual' ? 0.5 : player.gameDifficulty === 'monarch' ? 1.5 : 1.0;
     const hpLoss = Math.round(targetPact.hpDamage * multiplier);
     const goldLoss = Math.round(targetPact.goldPenalty * multiplier);
+
+    triggerGameImpact('pact_infraction', `-${hpLoss} HP`);
+    if (goldLoss > 0) {
+      setTimeout(() => {
+        triggerCombatText(`-${goldLoss} 🟡`, 'damage');
+      }, 200);
+    }
 
     const currentHp = player.hp ?? 100;
     const nextHp = Math.max(0, currentHp - hpLoss);
@@ -629,20 +658,12 @@ const App: React.FC = () => {
         },
       });
     } else {
-      const motivationalQuotes = [
-        '«Una caída no define tu rango; lo que define a un Monarca es levantarse de inmediato sin dudar.»',
-        '«El veneno fue registrado, pero tu voluntad es inquebrantable. Sacúdete el polvo y reconquista tu disciplina.»',
-        '«El camino hacia la cima está forjado por caídas superadas. No permitas que un tropiezo se vuelva hábito.»',
-        '«Respira hondo, Cazador. Reconoce el error, aprende la lección y continúa con la guardia en alto.»'
-      ];
-      const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-
-      sound.speakMotivationalPrompt('Pacto registrado. Un Monarca tropieza pero se levanta de inmediato. ¡Continúa!');
+      sound.speakPactMotivationalPrompt(pactId);
 
       setSystemModal({
         isOpen: true,
         title: '⚠️ PACTO QUEBRANTADO: ¡RESURGE, CAZADOR!',
-        subtitle: `Has registrado una falta en «${targetPact.title}».\n\nPenalización: -${hpLoss} HP | -${goldLoss} Oro (Racha de días limpios reiniciada).\n\n${randomQuote}`,
+        subtitle: `Has registrado una falta en «${targetPact.title}».\n\nPenalización: -${hpLoss} HP | -${goldLoss} Oro (Racha limpia reiniciada).\n\n🔊 Frecuencia Acústica: «${pactProfile.soundName}»\n${pactProfile.soundDescription}\n\n${pactProfile.resurgenceQuote}`,
         type: 'info',
         onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
       });
@@ -900,6 +921,119 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     saveStoredPlayer(updatedPlayer);
     addLog(`¡Extracción Exitosa! Has invocado: [${item.name}] (${item.rarity}).`, 'shop');
+  };
+
+  // Claim Real Life Reward
+  const handleClaimRealReward = (reward: RealLifeReward) => {
+    if (player.gold < reward.costGold) return;
+
+    sound.playLevelUp();
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#f59e0b', '#10b981', '#4d6aff', '#ec4899'],
+      });
+    } catch {
+      // ignore
+    }
+
+    const currentRewards = player.customRewards || [];
+    const updatedRewards = currentRewards.map((r) => {
+      if (r.id === reward.id) {
+        return {
+          ...r,
+          timesClaimed: (r.timesClaimed || 0) + 1,
+          lastClaimedAt: new Date().toISOString(),
+        };
+      }
+      return r;
+    });
+
+    const updatedPlayer: Player = {
+      ...player,
+      gold: player.gold - reward.costGold,
+      customRewards: updatedRewards,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+
+    setSystemModal({
+      isOpen: true,
+      title: '¡RECOMPENSA REAL CANJEADA!',
+      subtitle: `Has canjeado [${reward.title}] por ${reward.costGold.toLocaleString()} Oro.\n\nEl Sistema certifica que te lo has ganado con disciplina real. ¡Disfrútalo sin culpa!`,
+      type: 'loot_drop',
+      rewards: {
+        itemName: reward.title,
+      },
+      onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
+    });
+
+    addLog(`Recompensa de vida real canjeada: «${reward.title}» (-${reward.costGold} Oro).`, 'shop');
+  };
+
+  // Add Custom Real Reward
+  const handleAddRealReward = (newRewardData: Omit<RealLifeReward, 'id' | 'timesClaimed' | 'lastClaimedAt'>) => {
+    sound.playBeep(640, 0.06);
+    const newReward: RealLifeReward = {
+      ...newRewardData,
+      id: `reward_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      timesClaimed: 0,
+    };
+
+    const updatedRewards = [...(player.customRewards || []), newReward];
+    const updatedPlayer: Player = {
+      ...player,
+      customRewards: updatedRewards,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+    addLog(`Nueva recompensa real agregada al Mercado: «${newReward.title}».`, 'shop');
+  };
+
+  // Delete Real Reward
+  const handleDeleteRealReward = (rewardId: string) => {
+    sound.playBeep(320, 0.05);
+    const updatedRewards = (player.customRewards || []).filter((r) => r.id !== rewardId);
+    const updatedPlayer: Player = {
+      ...player,
+      customRewards: updatedRewards,
+    };
+
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+    addLog(`Recompensa real eliminada del catálogo.`, 'shop');
+  };
+
+  // Truce Mode Handlers
+  const handleActivateTruce = (hours: number, reason: string) => {
+    const expires = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    const updatedPlayer: Player = {
+      ...player,
+      truceActive: true,
+      truceExpiresAt: expires,
+      truceReason: reason,
+    };
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+    sound.playAwakening();
+    addLog(`[ESCUDO DE TREGUA] Desplegado por ${hours}h. Causa: ${reason}.`, 'system');
+  };
+
+  const handleDeactivateTruce = () => {
+    const updatedPlayer: Player = {
+      ...player,
+      truceActive: false,
+      truceExpiresAt: undefined,
+      truceReason: undefined,
+    };
+    setPlayer(updatedPlayer);
+    saveStoredPlayer(updatedPlayer);
+    sound.playBeep(480, 0.08);
+    addLog(`[ESCUDO DE TREGUA] Desactivado. Protocolo regular restaurado.`, 'system');
   };
 
   // Add Custom Dungeon
@@ -1596,9 +1730,9 @@ const App: React.FC = () => {
         }}
       />
 
-      {/* Main View Port */}
-      <main className="flex-1 overflow-y-auto pt-20 pb-24 md:pb-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+      {/* Main View Port with Game Screen FX & Page Enter Animation */}
+      <main id="game-viewport" className="flex-1 overflow-y-auto pt-20 pb-24 md:pb-10 relative">
+        <div key={currentPage} className="max-w-7xl mx-auto px-4 md:px-8 py-4 animate-page-enter">
           {currentPage === 'dashboard' && (
             <Dashboard
               player={player}
@@ -1624,6 +1758,7 @@ const App: React.FC = () => {
               onAddCustomPact={handleAddCustomPact}
               onTogglePactActive={handleTogglePactActive}
               onForceDailyReset={handleForceDailyReset}
+              onOpenTruceModal={() => setIsTruceModalOpen(true)}
             />
           )}
 
@@ -1651,6 +1786,9 @@ const App: React.FC = () => {
               player={player}
               onBuyItem={buyShopItem}
               onMysteryChest={handleMysteryChest}
+              onClaimRealReward={handleClaimRealReward}
+              onAddRealReward={handleAddRealReward}
+              onDeleteRealReward={handleDeleteRealReward}
             />
           )}
 
@@ -1709,6 +1847,7 @@ const App: React.FC = () => {
         current={currentPage}
         onNavigate={setCurrentPage}
         unallocatedPoints={player.statPoints}
+        playerLevel={player.level}
       />
 
       {/* Mobile Quick Action Widget */}
@@ -1744,6 +1883,7 @@ const App: React.FC = () => {
           isOpen={isPenaltyModalOpen}
           onClose={() => setIsPenaltyModalOpen(false)}
           onCompletePenalty={handleCompletePenalty}
+          difficulty={player.gameDifficulty}
         />
       )}
 
@@ -1833,6 +1973,17 @@ const App: React.FC = () => {
         }}
       />
 
+      {/* Escudo de Tregua del Monarca */}
+      <TruceModal
+        isOpen={isTruceModalOpen}
+        onClose={() => setIsTruceModalOpen(false)}
+        isTruceActive={!!player.truceActive}
+        truceExpiresAt={player.truceExpiresAt}
+        truceReason={player.truceReason}
+        onActivateTruce={handleActivateTruce}
+        onDeactivateTruce={handleDeactivateTruce}
+      />
+
       <SystemModal
         isOpen={systemModal.isOpen}
         title={systemModal.title}
@@ -1841,6 +1992,9 @@ const App: React.FC = () => {
         rewards={systemModal.rewards}
         onClose={systemModal.onClose}
       />
+
+      {/* RPG Floating Numbers & Loot Drops Overlay */}
+      <FloatingTextOverlay />
     </div>
   );
 };

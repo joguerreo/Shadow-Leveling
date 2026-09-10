@@ -320,6 +320,17 @@ export interface ForbiddenPact {
   cleanStreakDays: number;
   lastInfractionAt: string | null;
   totalInfractions: number;
+  customVoicePrompt?: string;
+}
+
+export interface RealLifeReward {
+  id: string;
+  title: string;
+  description: string;
+  costGold: number;
+  icon: string;
+  timesClaimed: number;
+  lastClaimedAt?: string | null;
 }
 
 export interface Player {
@@ -335,6 +346,10 @@ export interface Player {
   gameDifficulty?: GameDifficulty;
   lifestyleArchetype?: LifestyleArchetype;
   forbiddenPacts?: ForbiddenPact[];
+  customRewards?: RealLifeReward[];
+  truceActive?: boolean;
+  truceExpiresAt?: string | null;
+  truceReason?: string;
   rank: Rank;
   gold: number;
   essenceStones: number;

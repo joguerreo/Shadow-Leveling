@@ -3,6 +3,7 @@ import { Player } from '../types';
 import { calculateCombatPower } from '../utils/calculator';
 import { sound } from '../utils/sound';
 import { HunterAvatar } from './avatars/HunterAvatar';
+import { isFeatureUnlocked, getFeatureUnlockRule } from '../utils/featureUnlocks';
 
 interface NavbarProps {
   player: Player;
@@ -34,6 +35,13 @@ const Navbar: React.FC<NavbarProps> = ({
   const combatPower = calculateCombatPower(player);
 
   const handleNavClick = (page: 'dashboard' | 'dungeons' | 'inventory' | 'shop' | 'shadows' | 'skills' | 'bosses' | 'analytics') => {
+    const unlocked = isFeatureUnlocked(page, player.level);
+    if (!unlocked) {
+      const rule = getFeatureUnlockRule(page);
+      sound.playBeep(220, 0.15, 'sawtooth');
+      alert(`[ ACCESO RESTRINGIDO POR EL SISTEMA ]\n\nRequiere alcanzar el Nivel ${rule?.minLevel || '?'} para acceder a «${rule?.name || page}».\nActualmente tu nivel es ${player.level}. ¡Completa tus misiones diarias para desbloquear esta dimensión!`);
+      return;
+    }
     sound.playBeep(520, 0.05);
     onNavigate(page);
   };
@@ -65,94 +73,45 @@ const Navbar: React.FC<NavbarProps> = ({
 
       {/* Navigation Links (Desktop) */}
       <div className="hidden md:flex items-center gap-1 bg-surface-dark/60 p-1 rounded-xl border border-white/5">
-        <button
-          onClick={() => handleNavClick('dashboard')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'dashboard'
-              ? 'bg-primary text-white system-glow shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">person</span>
-          Estado & Misiones
-        </button>
-        <button
-          onClick={() => handleNavClick('dungeons')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'dungeons'
-              ? 'bg-primary text-white system-glow shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">hourglass_top</span>
-          Mazmorras
-        </button>
-        <button
-          onClick={() => handleNavClick('inventory')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'inventory'
-              ? 'bg-primary text-white system-glow shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">inventory_2</span>
-          Inventario
-        </button>
-        <button
-          onClick={() => handleNavClick('shop')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'shop'
-              ? 'bg-primary text-white system-glow shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">storefront</span>
-          Mercado
-        </button>
-        <button
-          onClick={() => handleNavClick('shadows')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'shadows'
-              ? 'bg-accent text-white shadow-md shadow-purple-500/30'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">groups</span>
-          Sombras
-        </button>
-        <button
-          onClick={() => handleNavClick('skills')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'skills'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">psychology</span>
-          Habilidades
-        </button>
-        <button
-          onClick={() => handleNavClick('bosses')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'bosses'
-              ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">swords</span>
-          Jefes
-        </button>
-        <button
-          onClick={() => handleNavClick('analytics')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-            current === 'analytics'
-              ? 'bg-primary text-white system-glow shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">insights</span>
-          Analítica
-        </button>
+        {[
+          { id: 'dashboard' as const, name: 'Estado & Misiones', icon: 'person' },
+          { id: 'dungeons' as const, name: 'Mazmorras', icon: 'hourglass_top' },
+          { id: 'inventory' as const, name: 'Inventario', icon: 'inventory_2' },
+          { id: 'shop' as const, name: 'Mercado', icon: 'storefront' },
+          { id: 'shadows' as const, name: 'Sombras', icon: 'groups' },
+          { id: 'skills' as const, name: 'Habilidades', icon: 'psychology' },
+          { id: 'bosses' as const, name: 'Jefes', icon: 'swords' },
+          { id: 'analytics' as const, name: 'Analítica', icon: 'insights' },
+        ].map((item) => {
+          const isActive = current === item.id;
+          const unlocked = isFeatureUnlocked(item.id, player.level);
+          const rule = getFeatureUnlockRule(item.id);
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleNavClick(item.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all relative ${
+                !unlocked
+                  ? 'opacity-55 hover:opacity-100 text-slate-500 hover:text-slate-300'
+                  : isActive
+                  ? 'bg-primary text-white system-glow shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+              title={!unlocked ? `Bloqueado hasta Nivel ${rule?.minLevel}` : undefined}
+            >
+              <span className="material-symbols-outlined text-sm">
+                {!unlocked ? 'lock' : item.icon}
+              </span>
+              <span>{item.name}</span>
+              {!unlocked && rule && (
+                <span className="text-[8px] font-mono font-black px-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Lv.{rule.minLevel}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Header Resources, Tour, Auth & Stats */}

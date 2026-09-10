@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player, WorldBoss, HunterAchievement, Rank } from '../types';
 import { sound } from '../utils/sound';
 import { calculateCombatPower } from '../utils/calculator';
+import { triggerGameImpact } from '../utils/gameFx';
 import confetti from 'canvas-confetti';
 
 interface WorldBossesProps {
@@ -57,6 +58,7 @@ const WorldBosses: React.FC<WorldBossesProps> = ({
     }
 
     setLastDamage(damage);
+    triggerGameImpact('boss_hit', `-${damage.toLocaleString()} DMG`);
     onAttackBoss(selectedBoss.id, damage);
 
     setTimeout(() => {
@@ -66,6 +68,7 @@ const WorldBosses: React.FC<WorldBossesProps> = ({
 
   const handleClaimBoss = (bossId: string) => {
     sound.playLevelUp();
+    triggerGameImpact('arise', '¡JEFE ANIQUILADO!');
     try {
       confetti({
         particleCount: 120,
@@ -81,6 +84,7 @@ const WorldBosses: React.FC<WorldBossesProps> = ({
 
   const handleClaimAchieve = (ach: HunterAchievement) => {
     sound.playQuestComplete();
+    triggerGameImpact('level_up', `¡LOGRO: ${ach.title}!`);
     try {
       confetti({
         particleCount: 80,

@@ -20,7 +20,7 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
   onOpenPenaltyModal,
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'nutrition' | 'health' | 'discipline'>('all');
 
   // New Pact Form State
@@ -30,6 +30,7 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
   const [newHpDamage, setNewHpDamage] = useState(25);
   const [newGoldPenalty, setNewGoldPenalty] = useState(50);
   const [newIcon, setNewIcon] = useState('local_drink');
+  const [newVoicePrompt, setNewVoicePrompt] = useState('');
 
   const difficultyMultiplier = player.gameDifficulty === 'casual' ? 0.5 : player.gameDifficulty === 'monarch' ? 1.5 : 1.0;
 
@@ -52,10 +53,12 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
       hpDamage: Math.max(10, newHpDamage),
       goldPenalty: Math.max(10, newGoldPenalty),
       active: true,
+      customVoicePrompt: newVoicePrompt.trim() || undefined,
     });
 
     setNewTitle('');
     setNewDescription('');
+    setNewVoicePrompt('');
     setIsCreateOpen(false);
     sound.playBeep(600, 0.08);
   };
@@ -92,17 +95,6 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => {
-              sound.playPactViolation();
-            }}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[11px] sm:text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95"
-            title="Escuchar sonido de advertencia y resurgimiento al quebrar un pacto"
-          >
-            <span className="material-symbols-outlined text-sm sm:text-base text-yellow-400">volume_up</span>
-            <span className="hidden sm:inline">Audio Resurgir</span>
-          </button>
-
           {isCriticalHp && (
             <button
               onClick={onOpenPenaltyModal}
@@ -208,7 +200,7 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
                 </div>
               </div>
 
-              {/* Penalty Tags & Infraction Button */}
+              {/* Penalty Tags & Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/5">
                 {/* Penalties */}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -222,22 +214,25 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
                   </span>
                   {pact.totalInfractions > 0 && (
                     <span className="text-[10px] font-mono text-slate-500">
-                      ({pact.totalInfractions} infracciones)
+                      ({pact.totalInfractions} faltas)
                     </span>
                   )}
                 </div>
 
-                {/* The "I broke the pact" button */}
-                <button
-                  onClick={() => {
-                    onTriggerInfraction(pact.id);
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 active:scale-95 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-red-700/30 touch-manipulation min-h-[44px]"
-                  title="Registrar que has caído en este mal hábito para aplicar la penalización del Sistema"
-                >
-                  <span className="material-symbols-outlined text-sm">warning</span>
-                  <span>Registrar Falta</span>
-                </button>
+                {/* Button: Register Infraction */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => {
+                      onTriggerInfraction(pact.id);
+                      sound.speakPactMotivationalPrompt(pact.id, pact.customVoicePrompt);
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 active:scale-95 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-red-700/30 touch-manipulation min-h-[44px]"
+                    title="Registrar que has caído en este mal hábito para aplicar la penalización del Sistema"
+                  >
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    <span>Registrar Falta</span>
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -360,6 +355,34 @@ export const ForbiddenPactsSection: React.FC<ForbiddenPactsSectionProps> = ({
                     className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-white text-sm font-mono focus:outline-none focus:border-red-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-300">
+                    Mensaje de Voz Personalizado (Opcional)
+                  </label>
+                  {newVoicePrompt.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => sound.speakMotivation(newVoicePrompt.trim())}
+                      className="text-[10px] text-purple-400 hover:text-purple-300 font-mono font-bold flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-xs">volume_up</span>
+                      <span>Escuchar</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ej: ¡Recuerda por qué empezaste! Un resbalón no te define, ¡levántate ahora!"
+                  value={newVoicePrompt}
+                  onChange={(e) => setNewVoicePrompt(e.target.value)}
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  El Sistema narrará este mensaje con voz de mando cuando registres una infracción para impulsarte a retomar el control.
+                </p>
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
