@@ -5,6 +5,9 @@ import { sound } from '../utils/sound';
 import { triggerGameImpact, triggerCombatText, triggerHaptic } from '../utils/gameFx';
 import OracleEvaluationModal from '../components/OracleEvaluationModal';
 import { HunterAvatar } from '../components/avatars/HunterAvatar';
+import { HunterLevelCore } from '../components/HunterLevelCore';
+import { HoldToCompleteButton } from '../components/HoldToCompleteButton';
+import { AttributeConcentricRings } from '../components/AttributeConcentricRings';
 import { resolvePlayerAvatar } from '../utils/avatarEvolution';
 import ForbiddenPactsSection from '../components/ForbiddenPactsSection';
 
@@ -33,6 +36,8 @@ interface DashboardProps {
   onTogglePactActive?: (pactId: string) => void;
   onForceDailyReset?: () => void;
   onOpenTruceModal?: () => void;
+  isMinimalist?: boolean;
+  onToggleMinimalist?: () => void;
 }
 
 const ATTR_METADATA_FALLBACK: Record<'str' | 'int' | 'vit' | 'agi' | 'wis' | 'cha', { name: string; code: string; icon: string; color: string; bonusText: string }> = {
@@ -69,12 +74,36 @@ const Dashboard: React.FC<DashboardProps> = ({
   onTogglePactActive,
   onForceDailyReset,
   onOpenTruceModal,
+  isMinimalist = false,
+  onToggleMinimalist,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [resetTimer, setResetTimer] = useState<string>('00:00:00');
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
   const [showAttrDetails, setShowAttrDetails] = useState<boolean>(false);
+  const [attrViewStyle, setAttrViewStyle] = useState<'rings' | 'grid'>('rings');
+  const [questLayout, setQuestLayout] = useState<'cards' | 'compact'>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('system_quest_layout') : null;
+    if (saved === 'cards' || saved === 'compact') return saved;
+    return isMinimalist ? 'compact' : 'cards';
+  });
+
+  useEffect(() => {
+    if (isMinimalist) {
+      setQuestLayout('compact');
+    }
+  }, [isMinimalist]);
+
+  const handleToggleQuestLayout = (layout: 'cards' | 'compact') => {
+    sound.playBeep(layout === 'compact' ? 580 : 500, 0.03);
+    setQuestLayout(layout);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('system_quest_layout', layout);
+    }
+  };
+
+  const primaryDailyQuest = quests.find((q) => q.isDaily && !q.completed);
 
   const effectiveStats = getEffectiveAttributes(player);
   const combatPower = calculateCombatPower(player);
@@ -134,6 +163,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'habit', label: 'Hábitos', icon: 'repeat' },
     { id: 'mindfulness', label: 'Mente', icon: 'self_improvement' },
   ];
+
+  const handleQuestHoldComplete = (quest: Quest) => {
+    const xpGain = quest.rewards?.xp ?? 50;
+    const goldGain = quest.rewards?.gold ?? 10;
+    triggerGameImpact('loot', `+${xpGain} XP`);
+    if (goldGain > 0) {
+      setTimeout(() => {
+        triggerCombatText(`+${goldGain} 🟡`, 'gold');
+      }, 180);
+    }
+    onCompleteQuest(quest.id);
+  };
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -203,6 +244,62 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
+      {/* Zen Focus Target (Minimalist Primary Task Spotlight) */}
+      {isMinimalist && primaryDailyQuest && (
+        <div className="bg-[#090d18]/90 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 flex-1 min-w-0">
+              <HoldToCompleteButton
+                variant="icon"
+                size="md"
+                isCompleted={primaryDailyQuest.completed}
+                onComplete={() => handleQuestHoldComplete(primaryDailyQuest)}
+                colorVariant="cyan"
+                title="Mantén presionado para sellar y completar"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-mono font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 flex items-center gap-1.5 shadow-sm">
+                    <span className="size-1.5 rounded-full bg-cyan-400 animate-ping" />
+                    OBJETIVO TÁCTICO INMEDIATO
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {primaryDailyQuest.rank}
+                  </span>
+                  {primaryDailyQuest.targetCount && primaryDailyQuest.targetCount > 1 && (
+                    <span className="text-[10px] font-mono text-cyan-300 font-bold">
+                      [{primaryDailyQuest.currentCount || 0}/{primaryDailyQuest.targetCount} {primaryDailyQuest.unit}]
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white truncate mt-1">
+                  {primaryDailyQuest.title}
+                </h3>
+                <p className="text-xs text-slate-400 truncate max-w-xl">
+                  {primaryDailyQuest.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+              {onOpenFocusModal && (
+                <button
+                  onClick={() => {
+                    sound.playBeep(640, 0.05);
+                    onOpenFocusModal();
+                  }}
+                  className="px-3.5 py-2 bg-gradient-to-r from-purple-900/80 to-indigo-900/80 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/40 rounded-xl text-purple-200 text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-purple-950/50"
+                  title="Entrar en Mazmorra de Enfoque Pomodoro"
+                >
+                  <span className="material-symbols-outlined text-sm">timer</span>
+                  <span>Foco 25m</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hunter Status Banner (Ultra-Optimized Mobile & Desktop) */}
       <section className="hud-card rounded-xl sm:rounded-2xl p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity">
@@ -211,27 +308,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 relative z-10">
           <div className="flex flex-row items-center sm:items-center gap-3 sm:gap-5 w-full lg:w-auto">
-            {/* Interactive Avatar */}
-            <div 
-              onClick={() => {
-                sound.playBeep(580, 0.04);
-                onOpenProfileModal?.();
-              }}
-              className="cursor-pointer group/avatar relative shrink-0"
-              title="Haz clic para personalizar Avatar y Evolución"
-            >
-              <HunterAvatar
-                avatarId={activeAvatarId}
-                frameId={activeFrameId}
-                size="xl"
-                showGlow
-                animated
-                className="size-16 sm:size-24 group-hover/avatar:scale-105 transition-transform"
-              />
-              <div className="absolute -bottom-1 -right-1 size-5 sm:size-6 bg-primary rounded-full flex items-center justify-center text-white border-2 border-surface-dark shadow-md shadow-primary/40 group-hover/avatar:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[10px] sm:text-xs">edit</span>
-              </div>
-            </div>
+            {/* Interactive Avatar & Level Core with Breathing Halo & Circular XP Ring */}
+            <HunterLevelCore
+              player={player}
+              onOpenProfile={onOpenProfileModal}
+              size="lg"
+            />
 
             <div className="flex flex-col space-y-1 min-w-0 w-full">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -396,34 +478,80 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      {/* Combat Attributes (Compact 3x2 Grid on Mobile, 6 Cols on Desktop) */}
+      {/* Combat Attributes (Concentric Mana Rings or 6-Col Grid) */}
       <section id="attributes-section" className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-base sm:text-lg">bar_chart</span>
-            <h3 className="text-white text-xs sm:text-sm font-black uppercase tracking-widest italic">
-              Atributos de Combate
+            <span className="material-symbols-outlined text-primary text-base sm:text-lg">
+              {attrViewStyle === 'rings' ? 'radial' : 'bar_chart'}
+            </span>
+            <h3 className="text-white text-xs sm:text-sm font-black uppercase tracking-widest italic font-display">
+              {attrViewStyle === 'rings' ? 'Anillos de Resonancia & Atributos' : 'Atributos de Combate'}
             </h3>
           </div>
           <div className="flex items-center gap-2">
             {player.statPoints > 0 && (
-              <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[10px] sm:text-xs font-black rounded-lg uppercase animate-pulse flex items-center gap-1">
+              <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[10px] sm:text-xs font-black rounded-lg uppercase animate-pulse flex items-center gap-1 font-mono">
                 <span className="material-symbols-outlined text-xs">stars</span>
                 {player.statPoints} Puntos
               </span>
             )}
-            <button
-              onClick={() => setShowAttrDetails(!showAttrDetails)}
-              className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-all"
-              title="Alternar vista detallada de bonificadores"
-            >
-              <span className="material-symbols-outlined text-xs">{showAttrDetails ? 'unfold_less' : 'info'}</span>
-              <span>{showAttrDetails ? 'Ocultar info' : 'Ver info'}</span>
-            </button>
+
+            {/* View Switcher: Concentric Rings vs Grid */}
+            <div className="inline-flex rounded-lg bg-black/40 p-0.5 border border-white/10 text-[10px] font-mono">
+              <button
+                onClick={() => {
+                  sound.playBeep(480, 0.03);
+                  setAttrViewStyle('rings');
+                }}
+                className={`px-2 py-1 rounded flex items-center gap-1 transition-all ${
+                  attrViewStyle === 'rings'
+                    ? 'bg-primary text-white font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista de Anillos Concéntricos de Maná"
+              >
+                <span className="material-symbols-outlined text-xs">adjust</span>
+                <span className="hidden sm:inline">Anillos</span>
+              </button>
+              <button
+                onClick={() => {
+                  sound.playBeep(520, 0.03);
+                  setAttrViewStyle('grid');
+                }}
+                className={`px-2 py-1 rounded flex items-center gap-1 transition-all ${
+                  attrViewStyle === 'grid'
+                    ? 'bg-primary text-white font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista de Cuadrícula Clásica"
+              >
+                <span className="material-symbols-outlined text-xs">grid_view</span>
+                <span className="hidden sm:inline">Cuadrícula</span>
+              </button>
+            </div>
+
+            {attrViewStyle === 'grid' && (
+              <button
+                onClick={() => setShowAttrDetails(!showAttrDetails)}
+                className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-all"
+                title="Alternar vista detallada de bonificadores"
+              >
+                <span className="material-symbols-outlined text-xs">{showAttrDetails ? 'unfold_less' : 'info'}</span>
+                <span>{showAttrDetails ? 'Ocultar' : 'Info'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2">
+        {attrViewStyle === 'rings' ? (
+          <AttributeConcentricRings
+            player={player}
+            effectiveStats={effectiveStats}
+            onAllocateStat={onAllocateStat}
+          />
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2">
           {(['str', 'int', 'vit', 'agi', 'wis', 'cha'] as const).map((attrKey) => {
             const meta = ATTR_METADATA_FALLBACK[attrKey];
             const attrRaw = player.attributes?.[attrKey] || (player.attributes as any)?.[attrKey.toUpperCase()];
@@ -490,9 +618,22 @@ const Dashboard: React.FC<DashboardProps> = ({
             );
           })}
         </div>
+        )}
 
-        {/* Compact Quick Actions Toolbar (Oráculo, Puerta Roja, Castigo, Reiniciar Día) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+        {/* Compact Quick Actions Toolbar (Foco Maná, Oráculo, Puerta Roja, Castigo, Reiniciar Día) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+          <button
+            onClick={() => {
+              sound.playBeep(600, 0.05);
+              onOpenFocusModal?.();
+            }}
+            className="py-2 px-2.5 bg-gradient-to-r from-cyan-950/60 to-blue-950/60 hover:from-cyan-900 hover:to-blue-900 border border-cyan-500/40 rounded-lg text-cyan-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+            title="Abrir Mazmorra de Concentración / Temporizador Pomodoro de Maná"
+          >
+            <span className="material-symbols-outlined text-sm text-cyan-400">hourglass_top</span>
+            <span>Foco Maná</span>
+          </button>
+
           <button
             onClick={() => {
               sound.playBeep(550, 0.05);
@@ -529,7 +670,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onForceDailyReset();
               }
             }}
-            className="py-2 px-2.5 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-500/30 rounded-lg text-blue-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            className="col-span-2 sm:col-span-1 py-2 px-2.5 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-500/30 rounded-lg text-blue-300 hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
             title="Reiniciar manualmente el ciclo de misiones diarias"
           >
             <span className="material-symbols-outlined text-sm text-blue-400">restart_alt</span>
@@ -561,7 +702,13 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-white text-xl font-black uppercase tracking-widest italic font-display">
                 Protocolo de Misiones
               </h3>
-              <p className="text-slate-400 text-xs">Cumple los objetivos para acumular XP y forjar tu rango</p>
+              <p className="text-slate-400 text-xs flex items-center gap-2 flex-wrap">
+                <span>Cumple los objetivos para acumular XP y forjar tu rango</span>
+                <span className="text-[10px] font-mono font-bold text-cyan-300 px-2 py-0.5 rounded-md bg-cyan-950/70 border border-cyan-500/30 flex items-center gap-1 shadow-sm">
+                  <span className="material-symbols-outlined text-xs">touch_app</span>
+                  Mantén presionado para sellar
+                </span>
+              </p>
             </div>
           </div>
 
@@ -617,7 +764,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Filter Tabs & Search */}
+        {/* Filter Tabs, Search & View Mode Switcher */}
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <div className="flex flex-wrap gap-1.5 bg-surface-dark p-1 rounded-xl border border-white/5">
             {categories.map((cat) => (
@@ -639,22 +786,55 @@ const Dashboard: React.FC<DashboardProps> = ({
             ))}
           </div>
 
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Buscar misiones..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 bg-surface-dark border border-border-dark rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-600 focus:border-primary focus:outline-none"
-            />
-            <span className="material-symbols-outlined text-slate-500 text-sm absolute left-3 top-2.5">
-              search
-            </span>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* View Mode Switcher: Compact vs Cards */}
+            <div className="flex items-center bg-surface-dark p-1 rounded-xl border border-white/5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleToggleQuestLayout('compact')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
+                  questLayout === 'compact'
+                    ? 'bg-primary text-white system-glow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista Compacta Minimalista (Clean Line)"
+              >
+                <span className="material-symbols-outlined text-xs">view_headline</span>
+                <span className="hidden sm:inline text-[11px]">Compacta</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleQuestLayout('cards')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
+                  questLayout === 'cards'
+                    ? 'bg-primary text-white system-glow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Vista Tarjetas Detalladas"
+              >
+                <span className="material-symbols-outlined text-xs">grid_view</span>
+                <span className="hidden sm:inline text-[11px]">Tarjetas</span>
+              </button>
+            </div>
+
+            <div className="relative flex-1 md:w-64">
+              <input
+                type="text"
+                placeholder="Buscar misiones..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-surface-dark border border-border-dark rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-600 focus:border-primary focus:outline-none"
+              />
+              <span className="material-symbols-outlined text-slate-500 text-sm absolute left-3 top-2.5">
+                search
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Quests List */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           {filteredQuests.length === 0 ? (
             <div className="bg-surface-dark border border-border-dark rounded-2xl p-12 text-center space-y-3">
               <span className="material-symbols-outlined text-slate-600 text-5xl">task_alt</span>
@@ -678,6 +858,147 @@ const Dashboard: React.FC<DashboardProps> = ({
                 ? 100
                 : 0;
 
+              if (questLayout === 'compact') {
+                return (
+                  <div
+                    key={quest.id}
+                    className={`group px-3.5 py-2.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-2.5 ${
+                      quest.completed
+                        ? 'opacity-60 border-white/5 bg-[#080b13]/60'
+                        : 'border-white/10 hover:border-cyan-500/40 bg-[#0b0e1a]/85 hover:bg-[#101526] shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <HoldToCompleteButton
+                        variant="icon"
+                        size="sm"
+                        isCompleted={quest.completed}
+                        onComplete={() => handleQuestHoldComplete(quest)}
+                        colorVariant={quest.isDaily ? 'cyan' : quest.rank === 'S-RANK' ? 'purple' : 'gold'}
+                        title="Mantén presionado para sellar y completar"
+                      />
+
+                      {/* Icon indicator */}
+                      <div
+                        className={`size-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                          quest.category === 'fitness'
+                            ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                            : quest.category === 'intellect'
+                            ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                            : quest.category === 'discipline'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : quest.category === 'mindfulness'
+                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                            : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">
+                          {quest.category === 'fitness'
+                            ? 'fitness_center'
+                            : quest.category === 'intellect'
+                            ? 'psychology'
+                            : quest.category === 'discipline'
+                            ? 'verified'
+                            : quest.category === 'mindfulness'
+                            ? 'self_improvement'
+                            : 'assignment'}
+                        </span>
+                      </div>
+
+                      {/* Title & tags */}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-xs sm:text-sm font-bold truncate ${
+                              quest.completed ? 'line-through text-slate-500' : 'text-white'
+                            }`}
+                          >
+                            {quest.title}
+                          </span>
+                          {quest.isDaily && (
+                            <span className="px-1.5 py-0.2 bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 rounded text-[8.5px] font-mono font-black uppercase">
+                              Diaria
+                            </span>
+                          )}
+                          {quest.aiGenerated && (
+                            <span className="px-1.5 py-0.2 bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 rounded text-[8.5px] font-mono uppercase">
+                              IA
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Progress inline snippet if progressable */}
+                        {isProgressable && !quest.completed && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-20 sm:w-32 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                              <div
+                                className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                            <span className="text-[9.5px] font-mono font-bold text-slate-400">
+                              {quest.currentCount}/{quest.targetCount} {quest.unit}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => onIncrementQuestProgress(quest.id, 5)}
+                                className="px-1.5 py-0.2 bg-primary/20 hover:bg-primary/40 border border-primary/30 rounded text-[9px] font-bold text-primary active:scale-95"
+                              >
+                                +5
+                              </button>
+                              <button
+                                onClick={() => onIncrementQuestProgress(quest.id, 10)}
+                                className="px-1.5 py-0.2 bg-primary/30 hover:bg-primary/50 border border-primary/40 rounded text-[9px] font-bold text-primary active:scale-95"
+                              >
+                                +10
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Rewards & Action buttons */}
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-center">
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                        <span className="px-1.5 py-0.5 rounded bg-blue-950/40 border border-blue-500/20 text-blue-300 font-bold">
+                          +{quest.rewards.xp} XP
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-500/20 text-amber-300 font-bold">
+                          +{quest.rewards.gold} G
+                        </span>
+                        {quest.rewards.statPoints && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 font-bold">
+                            +{quest.rewards.statPoints} Pt
+                          </span>
+                        )}
+                      </div>
+
+                      {onOpenFocusModal && !quest.completed && (
+                        <button
+                          onClick={() => {
+                            sound.playBeep(600, 0.04);
+                            onOpenFocusModal();
+                          }}
+                          className="size-7 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/30 text-purple-300 hover:text-white flex items-center justify-center transition-all active:scale-95"
+                          title="Iniciar Enfoque Pomodoro"
+                        >
+                          <span className="material-symbols-outlined text-xs">timer</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => onDeleteQuest(quest.id)}
+                        className="size-7 rounded-lg bg-white/5 hover:bg-red-950/60 border border-white/10 hover:border-red-500/30 text-slate-500 hover:text-red-400 flex items-center justify-center transition-all active:scale-95"
+                        title="Eliminar misión"
+                      >
+                        <span className="material-symbols-outlined text-xs">close</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={quest.id}
@@ -688,41 +1009,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                   }`}
                 >
                   <div className="flex items-start md:items-center gap-3.5 sm:gap-4 flex-1">
-                    {/* Checkbox Trigger with Game Combat Feedback */}
-                    <button
-                      onClick={(e) => {
-                        if (!quest.completed) {
-                          triggerHaptic('impact');
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const xpGain = quest.rewards?.xp ?? 50;
-                          const goldGain = quest.rewards?.gold ?? 10;
-                          triggerGameImpact('loot', `+${xpGain} XP`, {
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 10,
-                          });
-                          if (goldGain > 0) {
-                            setTimeout(() => {
-                              triggerCombatText(`+${goldGain} 🟡`, 'gold', {
-                                x: rect.left + rect.width / 2 + 15,
-                                y: rect.top - 20,
-                              });
-                            }, 180);
-                          }
-                          onCompleteQuest(quest.id);
-                        }
-                      }}
-                      onMouseEnter={() => sound.playHover()}
-                      disabled={quest.completed}
-                      className={`size-11 sm:size-12 shrink-0 rounded-xl flex items-center justify-center transition-all touch-manipulation active:scale-90 ${
-                        quest.completed
-                          ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
-                          : 'btn-gacha btn-gacha-cyan'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined font-black text-xl">
-                        {quest.completed ? 'done_all' : 'check'}
-                      </span>
-                    </button>
+                    {/* Checkbox Trigger with Hold-to-Complete Mechanic */}
+                    <HoldToCompleteButton
+                      variant="icon"
+                      isCompleted={quest.completed}
+                      onComplete={() => handleQuestHoldComplete(quest)}
+                      colorVariant={quest.isDaily ? 'cyan' : quest.rank === 'S-RANK' ? 'purple' : 'gold'}
+                      title="Mantén presionado para sellar y completar"
+                    />
 
                     <div className="space-y-1 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -839,12 +1133,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Reclamada
                       </span>
                     ) : (
-                      <button
-                        onClick={() => onCompleteQuest(quest.id)}
-                        className="px-4 py-2 bg-primary hover:bg-accent text-white text-xs font-black uppercase rounded-lg transition-all system-glow min-h-[38px] active:scale-95"
-                      >
-                        Completar
-                      </button>
+                      <HoldToCompleteButton
+                        variant="button"
+                        isCompleted={quest.completed}
+                        label="Mantén para Sellar"
+                        colorVariant={quest.isDaily ? 'cyan' : 'gold'}
+                        onComplete={() => handleQuestHoldComplete(quest)}
+                      />
                     )}
 
                     <button

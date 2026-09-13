@@ -382,4 +382,6 @@ export interface Player {
   activeSagas?: string[];
   sagasProgress?: Record<string, number>;
   latestAudit?: WeeklyAuditReport;
+  personalMotto?: string;
+  resetHour?: number;
 }

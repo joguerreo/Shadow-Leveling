@@ -19,7 +19,7 @@ export function calculateCombatPower(player: Player): number {
   const baseAttrSum = str + int + vit + agi + wis + cha;
   power += baseAttrSum * 450;
 
-  // Power from equipped items
+  // Power from habits & completed tasks
   const equipment = Object.values(player.equipped || {});
   equipment.forEach((item) => {
     if (item && item.stats) {
@@ -50,6 +50,8 @@ export function calculateCombatPower(player: Player): number {
   return Math.round(power);
 }
 
+export const calculateDisciplineScore = calculateCombatPower;
+
 export function getRankFromLevel(level: number): Rank {
   if (level >= 80) return Rank.NATIONAL;
   if (level >= 60) return Rank.S;
@@ -60,14 +62,41 @@ export function getRankFromLevel(level: number): Rank {
   return Rank.E;
 }
 
+export function getMasteryLabelFromRank(rank: Rank | string): string {
+  switch (rank) {
+    case Rank.NATIONAL:
+    case 'NATIONAL':
+      return 'Nivel Trascendente';
+    case Rank.S:
+    case 'S-RANK':
+      return 'Nivel Maestro';
+    case Rank.A:
+    case 'A-RANK':
+      return 'Nivel Élite';
+    case Rank.B:
+    case 'B-RANK':
+      return 'Nivel Avanzado';
+    case Rank.C:
+    case 'C-RANK':
+      return 'Nivel Consistente';
+    case Rank.D:
+    case 'D-RANK':
+      return 'Nivel Básico';
+    case Rank.E:
+    case 'E-RANK':
+    default:
+      return 'Nivel Iniciante';
+  }
+}
+
 export function getTitleFromLevel(level: number): string {
-  if (level >= 80) return "The Shadow Monarch";
-  if (level >= 60) return "S-Rank National Vanguard";
-  if (level >= 45) return "Lord of the Abyssal Gate";
-  if (level >= 30) return "The High Commander";
-  if (level >= 18) return "The Aspiring Shadow";
-  if (level >= 8) return "Awakened Novice Hunter";
-  return "The Weakest Hunter";
+  if (level >= 80) return "Maestro de Disciplina Trascendente";
+  if (level >= 60) return "Especialista de Alto Rendimiento";
+  if (level >= 45) return "Líder de Hábitos Élite";
+  if (level >= 30) return "Estratega Consistente";
+  if (level >= 18) return "Practicante Disciplinado";
+  if (level >= 8) return "Constructor de Hábitos";
+  return "Iniciante en Formación";
 }
 
 export function getEffectiveAttributes(player: Player) {

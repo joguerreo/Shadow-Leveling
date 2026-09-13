@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Dungeon, DungeonTask } from '../types';
 import { sound } from '../utils/sound';
+import { HoldToCompleteButton } from '../components/HoldToCompleteButton';
+import { ManaFocusTimer } from '../components/ManaFocusTimer';
 import confetti from 'canvas-confetti';
 
 interface DungeonListProps {
@@ -286,55 +288,23 @@ const DungeonList: React.FC<DungeonListProps> = ({
               </div>
             </div>
 
-            {/* Live Clock & Controls */}
-            <div className="flex flex-col items-center gap-4 bg-surface-dark/90 border border-border-dark p-6 rounded-2xl w-full lg:w-80 shadow-2xl">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                Tiempo Restante
-              </span>
-              <div className="text-5xl md:text-6xl font-mono font-black text-white text-glow">
-                {formatTimer(timerSeconds)}
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-white/5">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000"
-                  style={{
-                    width: `${initialSeconds > 0 ? ((initialSeconds - timerSeconds) / initialSeconds) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="flex items-center gap-3 w-full pt-2">
-                <button
-                  onClick={toggleTimer}
-                  className={`flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all ${
-                    isRunning
-                      ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                      : 'bg-primary hover:bg-accent text-white system-glow'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">
-                    {isRunning ? 'pause' : 'play_arrow'}
-                  </span>
-                  {isRunning ? 'Pausar' : 'Reanudar'}
-                </button>
-                <button
-                  onClick={resetTimer}
-                  className="p-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all"
-                  title="Reiniciar"
-                >
-                  <span className="material-symbols-outlined text-base">replay</span>
-                </button>
-                <button
-                  onClick={handleDungeonVictory}
-                  className="p-3 bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white rounded-xl transition-all"
-                  title="Completar Raid Ahora"
-                >
-                  <span className="material-symbols-outlined text-base">check</span>
-                </button>
-              </div>
+            {/* Live Circular Mana Focus Clock & Controls */}
+            <div className="flex flex-col items-center justify-center bg-surface-dark/95 border border-border-dark p-4 sm:p-6 rounded-2xl w-full lg:w-96 shadow-2xl relative">
+              <ManaFocusTimer
+                totalSeconds={initialSeconds}
+                secondsRemaining={timerSeconds}
+                isRunning={isRunning}
+                isPaused={!isRunning && timerSeconds < initialSeconds && timerSeconds > 0}
+                onTogglePlay={toggleTimer}
+                onReset={resetTimer}
+                onAdjustTime={(mins) => {
+                  const deltaSecs = mins * 60;
+                  setTimerSeconds((prev) => Math.max(60, prev + deltaSecs));
+                  setInitialSeconds((prev) => Math.max(60, prev + deltaSecs));
+                }}
+                onComplete={handleDungeonVictory}
+                compact={false}
+              />
             </div>
           </div>
         </section>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player, Quest } from '../types';
 import { HunterAvatar } from './avatars/HunterAvatar';
 import { resolvePlayerAvatar } from '../utils/avatarEvolution';
+import { HoldToCompleteButton } from './HoldToCompleteButton';
 import { sound } from '../utils/sound';
 
 interface QuickMobileWidgetProps {
@@ -273,20 +274,14 @@ export const QuickMobileWidget: React.FC<QuickMobileWidgetProps> = ({
                           </button>
                         )}
 
-                        <button
-                          onClick={() => handleComplete(quest.id)}
-                          disabled={quest.completed}
-                          className={`min-h-[38px] min-w-[38px] rounded-xl flex items-center justify-center transition-all ${
-                            quest.completed
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 cursor-default'
-                              : 'bg-primary hover:bg-primary/90 text-white shadow-md active:scale-95'
-                          }`}
-                          title={quest.completed ? 'Completada' : 'Marcar como completada'}
-                        >
-                          <span className="material-symbols-outlined text-base">
-                            {quest.completed ? 'check' : 'radio_button_unchecked'}
-                          </span>
-                        </button>
+                        <HoldToCompleteButton
+                          variant="icon"
+                          size="sm"
+                          isCompleted={quest.completed}
+                          onComplete={() => handleComplete(quest.id)}
+                          colorVariant={quest.rank === 'S-RANK' ? 'purple' : quest.rank === 'A-RANK' ? 'crimson' : 'cyan'}
+                          title={quest.completed ? 'Completada' : 'Mantén presionado para sellar'}
+                        />
                       </div>
                     </div>
                   );

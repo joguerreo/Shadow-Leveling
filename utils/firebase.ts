@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import {
-  getFirestore,
+  initializeFirestore,
   doc,
   getDocFromServer,
   getDoc,
@@ -18,8 +18,14 @@ import { calculateCombatPower } from './calculator';
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Must pass firebaseConfig.firestoreDatabaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// CRITICAL: Initialize Firestore with custom databaseId and force long polling for rock-solid iframe/proxy connectivity
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+  },
+  firebaseConfig.firestoreDatabaseId
+);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -75,16 +81,23 @@ export async function testFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client appears offline. Please check your network or configuration.');
+  } catch (error: any) {
+    if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
+      return true;
+    }
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable'))) {
+      console.warn('Firebase client operating in offline mode or network is stabilizing.');
     }
     return false;
   }
 }
 
-// Run connection test
-testFirestoreConnection().catch(() => {});
+// Run connection test with a brief delay so the runtime network stack settles
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    testFirestoreConnection().catch(() => {});
+  }, 500);
+}
 
 // Authentication Helpers
 export async function loginWithGoogle(): Promise<FirebaseUser | null> {
@@ -132,8 +145,12 @@ export async function syncHunterToFirestore(userId: string, player: Player): Pro
       statPoints: Number(player.statPoints) || 0,
       mp: Number(player.mp) || 100,
       maxMp: Number(player.maxMp) || 100,
+      hp: Number(player.hp ?? 100),
+      maxHp: Number(player.maxHp ?? 100),
       combatPower: cp,
       streak: Number(player.streakDays) || 0,
+      lastActiveDate: player.lastActiveDate || '',
+      forbiddenPacts: player.forbiddenPacts || [],
       attributes: player.attributes || {},
       inventory: player.inventory || [],
       equipped: player.equipped || {},
@@ -245,7 +262,11 @@ export async function loadUserDataFromFirestore(userId: string): Promise<Partial
       statPoints: data.statPoints,
       mp: data.mp,
       maxMp: data.maxMp,
+      hp: data.hp,
+      maxHp: data.maxHp,
       streakDays: data.streak,
+      lastActiveDate: data.lastActiveDate || undefined,
+      forbiddenPacts: data.forbiddenPacts || undefined,
       attributes: data.attributes || undefined,
       inventory: data.inventory || undefined,
       equipped: data.equipped || undefined,

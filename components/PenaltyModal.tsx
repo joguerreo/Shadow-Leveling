@@ -141,17 +141,17 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
                 id="penalty-modal-title"
                 className="text-red-500 text-lg sm:text-2xl font-black italic tracking-tighter uppercase font-mono leading-none"
               >
-                [ ZONA DE PENALIZACIÓN ]
+                [ PROTOCOLO DE REACTIVACIÓN ]
               </h3>
               <p className="text-red-300/80 text-[10px] sm:text-xs font-mono tracking-widest mt-1">
-                MISIÓN DE SUPERVIVENCIA Y PURIFICACIÓN DE HP
+                CALIBRACIÓN FÍSICA Y RESTAURACIÓN DE ENERGÍA
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="size-9 rounded-lg bg-red-950/60 hover:bg-red-800 text-red-400 hover:text-white transition-colors flex items-center justify-center touch-manipulation"
-            aria-label="Cerrar ventana de penalización"
+            aria-label="Cerrar ventana de reactivación"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
@@ -168,7 +168,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
               {formatTime(timeLeftSeconds)}
             </div>
             <p className="text-[11px] text-red-300/80 italic mt-1 sm:mt-2">
-              «El Sistema purificará el 100% de tus Puntos de Salud (HP) y te otorgará +1 Punto de Estadística al superar esta prueba.»
+              «El Sistema restaurará el 100% de tu Barra de Energía y te otorgará +1 Punto de Atributo al completar esta sesión física.»
             </p>
           </div>
 
@@ -176,7 +176,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
           <div className="space-y-1.5">
             <label className="text-[11px] font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-xs text-amber-400">tune</span>
-              Intensidad de la Supervivencia:
+              Nivel de Intensidad:
             </label>
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <button
@@ -341,7 +341,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
             {allCompleted ? (
               <>
                 <span className="material-symbols-outlined text-lg">verified</span>
-                <span>¡Reclamar Supervivencia y Restaurar HP al 100%!</span>
+                <span>¡Completar Calibración y Restaurar Energía al 100%!</span>
               </>
             ) : (
               <>

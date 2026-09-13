@@ -157,5 +157,10 @@ service cloud.firestore {
         allow delete: if isOwner(userId) && isValidId(dungeonId);
       }
     }
+
+    // Health check test connection endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
   }
 }

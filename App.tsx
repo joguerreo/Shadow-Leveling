@@ -25,7 +25,9 @@ import HunterLicenseModal from './components/HunterLicenseModal';
 import AuthModal from './components/AuthModal';
 import SystemTourModal from './components/SystemTourModal';
 import TruceModal from './components/TruceModal';
+import { ManaEmbers } from './components/ManaEmbers';
 import { FloatingTextOverlay, triggerCombatText } from './components/FloatingTextOverlay';
+import { PortalHub } from './components/PortalHub';
 import { triggerGameImpact } from './utils/gameFx';
 import { 
   onHunterAuthStateChange, 
@@ -65,7 +67,7 @@ import {
   forceDailyReset,
 } from './utils/storage';
 import { INITIAL_PLAYER, INITIAL_QUESTS, INITIAL_DUNGEONS, INITIAL_SHADOW_EXPEDITIONS, INITIAL_SKILLS, INITIAL_ACHIEVEMENTS, INITIAL_WORLD_BOSSES } from './constants';
-import { getRankFromLevel, getTitleFromLevel } from './utils/calculator';
+import { getRankFromLevel, getTitleFromLevel, calculateCombatPower } from './utils/calculator';
 import { sound } from './utils/sound';
 import { getPactAudioProfile } from './utils/pactAudioProfiles';
 import { getRandomDailyQuests } from './utils/dailyQuestCatalog';
@@ -102,6 +104,19 @@ const App: React.FC = () => {
   const [isTruceModalOpen, setIsTruceModalOpen] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [minimalistMode, setMinimalistMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('system_minimalist_mode');
+    return saved === null ? true : saved === 'true';
+  });
+
+  const toggleMinimalistMode = () => {
+    setMinimalistMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('system_minimalist_mode', String(next));
+      return next;
+    });
+  };
+
   const [systemModal, setSystemModal] = useState<SystemModalData>({
     isOpen: false,
     title: '',
@@ -255,6 +270,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOutHunter();
+      setCurrentUser(null);
+      addLog('Sesión cerrada. Sistema operando en modo local.', 'system');
+    } catch (e: any) {
+      console.warn('Error al cerrar sesión:', e);
+    }
+  };
+
   // Initial load of awakening, tour check & periodic daily check
   useEffect(() => {
     const isAwake = loadIsAwakened();
@@ -392,9 +417,9 @@ const App: React.FC = () => {
     if (!targetQuest || targetQuest.completed) return;
 
     sound.playQuestComplete();
-    sound.speakSystemVoice(`Misión cumplida: ${targetQuest.title}.`);
+    sound.speakSystemVoice(`Objetivo completado: ${targetQuest.title}.`);
 
-    // Dificultad del juego (Casual / Cazador / Monarca)
+    // Dificultad del juego (Casual / Moderado / Implacable)
     const difficultyMult = player.gameDifficulty === 'casual' ? 1.25 : player.gameDifficulty === 'monarch' ? 1.5 : 1.0;
 
     // Afinidades de Arquetipo de Estilo de Vida
@@ -456,7 +481,7 @@ const App: React.FC = () => {
 
     setSystemModal({
       isOpen: true,
-      title: 'MISIÓN COMPLETADA',
+      title: 'OBJETIVO COMPLETADO',
       subtitle: `Has cumplido con éxito: "${targetQuest.title}".`,
       type: 'quest_reward',
       rewards: {
@@ -468,7 +493,7 @@ const App: React.FC = () => {
       onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
     });
 
-    addLog(`Misión completada: "${targetQuest.title}". Recompensas acreditadas.`, 'quest');
+    addLog(`Objetivo completado: "${targetQuest.title}". Recompensas registradas.`, 'quest');
   };
 
   // Increment Quest Progress
@@ -520,7 +545,7 @@ const App: React.FC = () => {
     setQuests(updated);
     saveStoredQuests(updated);
     setIsQuestModalOpen(false);
-    addLog(`Nueva misión registrada en el sistema: "${newQuest.title}".`, 'quest');
+    addLog(`Nuevo objetivo registrado en el sistema: "${newQuest.title}".`, 'quest');
   };
 
   // Add Emergency Quest
@@ -642,15 +667,15 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     saveStoredPlayer(updatedPlayer);
 
-    addLog(`[PACTO ROTO] Falta en «${targetPact.title}». Consecuencia: -${hpLoss} HP, -${goldLoss} Oro.`, 'penalty');
+    addLog(`[INCIDENCIA] Desliz en compromiso «${targetPact.title}». Penalización: -${hpLoss} HP.`, 'penalty');
 
     if (nextHp <= 0) {
       sound.playPenaltyWarning();
-      sound.speakMotivationalPrompt('¡Salud agotada! El Sistema exige purificación en la Zona de Castigo. ¡Ponte de pie!');
+      sound.speakMotivationalPrompt('¡Energía agotada! El Sistema requiere recuperación. ¡Ponte en marcha!');
       setSystemModal({
         isOpen: true,
-        title: '¡SALUD AGOTADA: ZONA DE CASTIGO INMINENTE!',
-        subtitle: `Tus puntos de salud han llegado a 0 tras romper tus pactos prohibidos. Para restaurar tu HP al 100%, el Sistema exige que completes el entrenamiento físico de supervivencia en la Zona de Castigo.`,
+        title: '¡ENERGÍA AGOTADA: RECUPERACIÓN REQUERIDA!',
+        subtitle: `Tus niveles de vitalidad han llegado a 0 tras incidencias en tus compromisos. Para restaurar tu energía al 100%, el Sistema requiere que completes la sesión de reactivación física.`,
         type: 'penalty_warning',
         onClose: () => {
           setSystemModal((prev) => ({ ...prev, isOpen: false }));
@@ -1591,8 +1616,8 @@ const App: React.FC = () => {
 
     setSystemModal({
       isOpen: true,
-      title: '¡MAZMORRA DE CONCENTRACIÓN SUPERADA!',
-      subtitle: `Has sostenido ${durationMinutes} minutos de enfoque ininterrumpido. El maná fluye con claridad.`,
+      title: '¡SESIÓN DE ENFOQUE PROFUNDO COMPLETADA!',
+      subtitle: `Has sostenido ${durationMinutes} minutos de concentración ininterrumpida. Claridad mental y rendimiento elevados.`,
       type: 'loot_drop',
       rewards: {
         xp: xpReward,
@@ -1602,7 +1627,7 @@ const App: React.FC = () => {
       onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
     });
 
-    addLog(`Mazmorra de Concentración completada (${durationMinutes} min). +${xpReward} XP.`, 'dungeon');
+    addLog(`Sesión de enfoque completada (${durationMinutes} min). +${xpReward} XP.`, 'dungeon');
   };
 
   // Mirror Shadow Duel Reward
@@ -1620,8 +1645,8 @@ const App: React.FC = () => {
 
     setSystemModal({
       isOpen: true,
-      title: '¡VICTORIA SOBRE LA SOMBRA DEL PASADO!',
-      subtitle: 'Tus hábitos de hoy han superado tu rendimiento anterior. El Monarca no retrocede.',
+      title: '¡REGISTRO ANTERIOR SUPERADO!',
+      subtitle: 'Tus hábitos de hoy han superado tu registro anterior. La disciplina diaria marca la diferencia.',
       type: 'loot_drop',
       rewards: {
         xp: rewards.xp,
@@ -1632,7 +1657,7 @@ const App: React.FC = () => {
       onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
     });
 
-    addLog('Duelo de la Sombra Reflejo conquistado hoy.', 'stat');
+    addLog('Rendimiento diario superado frente al registro anterior.', 'stat');
   };
 
   // Save Weekly Audit
@@ -1705,161 +1730,47 @@ const App: React.FC = () => {
     );
   }
 
+  const isCriticalHp = ((player.hp ?? 100) / (player.maxHp ?? 100)) <= 0.3;
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#0b0c10] text-white font-sans overflow-x-hidden selection:bg-primary selection:text-white">
-      {/* Top Navbar */}
-      <Navbar
-        player={player}
-        onNavigate={setCurrentPage}
-        current={currentPage}
-        onToggleSound={toggleSound}
-        onOpenProfileModal={() => setIsProfileModalOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onStartTour={() => setIsTourModalOpen(true)}
-        currentUser={currentUser}
-        isSyncing={isSyncing}
-        onManualSync={handleManualSync}
-        onLogout={async () => {
-          sound.playBeep(420, 0.05);
-          await signOutHunter();
-          setCurrentUser(null);
-          setAwakened(false);
-          saveIsAwakened(false);
-          setCurrentPage('dashboard');
-          addLog('Sesión cerrada. Regresando al portal de autenticación.', 'system');
-        }}
-      />
+    <div className={`flex flex-col min-h-screen text-white font-sans overflow-x-hidden selection:bg-primary selection:text-white transition-all duration-700 relative ${
+      isCriticalHp ? 'critical-atmosphere' : 'void-atmosphere'
+    }`}>
+      {/* Ambient Floating Mana Embers */}
+      <ManaEmbers isCritical={isCriticalHp} />
 
-      {/* Main View Port with Game Screen FX & Page Enter Animation */}
-      <main id="game-viewport" className="flex-1 overflow-y-auto pt-20 pb-24 md:pb-10 relative">
-        <div key={currentPage} className="max-w-7xl mx-auto px-4 md:px-8 py-4 animate-page-enter">
-          {currentPage === 'dashboard' && (
-            <Dashboard
-              player={player}
-              quests={quests}
-              logs={logs}
-              onCompleteQuest={completeQuest}
-              onIncrementQuestProgress={incrementQuestProgress}
-              onResetQuestProgress={resetQuestProgress}
-              onDeleteQuest={deleteQuest}
-              onAllocateStat={allocateStat}
-              onAddRandomQuest={handleQuickAddRandomQuest}
-              onAddBalancedRoutine={handleQuickAddBalancedRoutine}
-              onOpenQuestModal={() => setIsQuestModalOpen(true)}
-              onOpenPenaltyModal={() => setIsPenaltyModalOpen(true)}
-              onOpenProfileModal={() => setIsProfileModalOpen(true)}
-              onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
-              onOpenSagasModal={() => setIsSagasModalOpen(true)}
-              onOpenWeeklyAuditModal={() => setIsWeeklyAuditModalOpen(true)}
-              onOpenFocusModal={() => setIsFocusModalOpen(true)}
-              onOpenMirrorModal={() => setIsMirrorModalOpen(true)}
-              onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
-              onTriggerPactInfraction={handleTriggerPactInfraction}
-              onAddCustomPact={handleAddCustomPact}
-              onTogglePactActive={handleTogglePactActive}
-              onForceDailyReset={handleForceDailyReset}
-              onOpenTruceModal={() => setIsTruceModalOpen(true)}
-            />
-          )}
-
-          {currentPage === 'dungeons' && (
-            <DungeonList
-              player={player}
-              dungeons={dungeons}
-              onCompleteDungeon={completeDungeon}
-              onOpenCreateDungeonModal={() => setIsCreateDungeonOpen(true)}
-            />
-          )}
-
-          {currentPage === 'inventory' && (
-            <Inventory
-              player={player}
-              onEquipItem={equipItem}
-              onUnequipSlot={unequipSlot}
-              onUseConsumable={useConsumable}
-              onSellItem={sellItem}
-            />
-          )}
-
-          {currentPage === 'shop' && (
-            <Shop
-              player={player}
-              onBuyItem={buyShopItem}
-              onMysteryChest={handleMysteryChest}
-              onClaimRealReward={handleClaimRealReward}
-              onAddRealReward={handleAddRealReward}
-              onDeleteRealReward={handleDeleteRealReward}
-            />
-          )}
-
-          {currentPage === 'shadows' && (
-            <ShadowArmy
-              player={player}
-              expeditions={expeditions}
-              onUpgradeShadow={handleUpgradeShadow}
-              onUnlockShadow={handleUnlockShadow}
-              onStartExpedition={handleStartExpedition}
-              onClaimExpedition={handleClaimExpedition}
-            />
-          )}
-
-          {currentPage === 'skills' && (
-            <SkillTree
-              player={player}
-              skills={skills}
-              onUpgradeSkill={handleUpgradeSkill}
-              onUnlockSkill={handleUnlockSkill}
-              onEquipTitle={handleEquipTitle}
-            />
-          )}
-
-          {currentPage === 'bosses' && (
-            <WorldBosses
-              player={player}
-              bosses={bosses}
-              achievements={achievements}
-              onAttackBoss={handleAttackBoss}
-              onClaimBossReward={handleClaimBossReward}
-              onClaimAchievement={handleClaimAchievement}
-            />
-          )}
-
-          {currentPage === 'analytics' && (
-            <Analytics
-              player={player}
-              quests={quests}
-              dungeons={dungeons}
-              expeditions={expeditions}
-              skills={skills}
-              achievements={achievements}
-              bosses={bosses}
-              sagas={sagas}
-              logs={logs}
-              onRestoreBackup={handleRestoreBackup}
-              onResetSystem={handleResetSystem}
-            />
-          )}
+      {/* Critical Vitality Banner when HP <= 30% */}
+      {isCriticalHp && (
+        <div className="fixed top-16 left-0 right-0 z-30 bg-red-950/80 border-b border-red-500/50 backdrop-blur-md px-4 py-1.5 flex items-center justify-between text-xs text-red-200">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto w-full">
+            <span className="material-symbols-outlined text-red-400 text-sm animate-pulse">battery_alert</span>
+            <span className="font-mono text-[11px] font-bold">
+              [SISTEMA: ENERGÍA CRÍTICA {player.hp}/{player.maxHp}] Nivel de resistencia bajo. Evita infracciones a tus compromisos y realiza una sesión en el Protocolo de Reactivación.
+            </span>
+          </div>
         </div>
+      )}
+
+      {/* Main View Port - 100% Immersive Minimalist Portal Hub */}
+      <main id="game-viewport" className="flex-1 w-full h-full p-0 relative transition-all duration-300">
+        <PortalHub
+          player={player}
+          quests={quests}
+          currentUser={currentUser}
+          onCompleteQuest={completeQuest}
+          onAddQuest={addQuest}
+          onAddBalancedRoutine={handleQuickAddBalancedRoutine}
+          onDeleteQuest={deleteQuest}
+          onTriggerPactInfraction={handleTriggerPactInfraction}
+          onTogglePactActive={handleTogglePactActive}
+          onAddCustomPact={handleAddCustomPact}
+          onAllocateStat={allocateStat}
+          onOpenTruceModal={() => setIsTruceModalOpen(true)}
+          onOpenProfileModal={() => setIsProfileModalOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onToggleSound={toggleSound}
+        />
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <BottomNav
-        current={currentPage}
-        onNavigate={setCurrentPage}
-        unallocatedPoints={player.statPoints}
-        playerLevel={player.level}
-      />
-
-      {/* Mobile Quick Action Widget */}
-      <QuickMobileWidget
-        player={player}
-        quests={quests}
-        onCompleteQuest={completeQuest}
-        onIncrementQuestProgress={(qId) => incrementQuestProgress(qId, 1)}
-        onOpenQuestModal={() => setIsQuestModalOpen(true)}
-        onOpenProfileModal={() => setIsProfileModalOpen(true)}
-        onAllocateStat={allocateStat}
-      />
 
       {/* Modals */}
       {isQuestModalOpen && (
@@ -1892,6 +1803,12 @@ const App: React.FC = () => {
           player={player}
           onClose={() => setIsProfileModalOpen(false)}
           onUpdateProfile={handleUpdateProfile}
+          currentUser={currentUser}
+          isSyncing={isSyncing}
+          onManualSync={handleManualSync}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+          onResetSystem={handleResetSystem}
         />
       )}
 
@@ -1951,11 +1868,11 @@ const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={(user) => {
           setCurrentUser(user);
-          addLog(`Cazador verificado en Supabase: ${user.email}`, 'system');
+          addLog(`Usuario sincronizado en Supabase: ${user.email}`, 'system');
           setSystemModal({
             isOpen: true,
-            title: '¡VÍNCULO CUÁNTICO CONECTADO!',
-            subtitle: `El Sistema ha enlazado tu progreso con la nube de Supabase (${user.email}). Ahora puedes acceder desde cualquier dispositivo.`,
+            title: '¡SINCRONIZACIÓN EN LA NUBE ACTIVA!',
+            subtitle: `El Sistema ha enlazado tu progreso con la nube (${user.email}). Ahora puedes acceder y mantener tu disciplina desde cualquier dispositivo.`,
             type: 'info',
             onClose: () => setSystemModal((prev) => ({ ...prev, isOpen: false })),
           });

@@ -64,10 +64,11 @@ export const FloatingTextOverlay: React.FC = () => {
         switch (it.type) {
           case 'xp':
             colorClass = 'text-[#60a5fa] drop-shadow-[0_0_10px_rgba(96,165,250,0.9)]';
+            prefix = '📈 +';
             break;
           case 'gold':
             colorClass = 'text-[#fbbf24] drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]';
-            prefix = '🟡 ';
+            prefix = '✨ ';
             break;
           case 'essence':
             colorClass = 'text-[#2dd4bf] drop-shadow-[0_0_10px_rgba(45,212,191,0.9)]';
@@ -75,11 +76,11 @@ export const FloatingTextOverlay: React.FC = () => {
             break;
           case 'damage':
             colorClass = 'text-[#ef4444] font-black text-xl drop-shadow-[0_0_12px_rgba(239,68,68,1)]';
-            prefix = '💥 ';
+            prefix = '⚠️ ';
             break;
           case 'heal':
             colorClass = 'text-[#10b981] drop-shadow-[0_0_10px_rgba(16,185,129,0.9)]';
-            prefix = '💚 ';
+            prefix = '🔋 +';
             break;
           case 'stat':
             colorClass = 'text-[#c084fc] drop-shadow-[0_0_10px_rgba(192,132,252,0.9)]';
@@ -87,11 +88,11 @@ export const FloatingTextOverlay: React.FC = () => {
             break;
           case 'critical':
             colorClass = 'text-[#f43f5e] font-black text-2xl tracking-widest drop-shadow-[0_0_16px_rgba(244,63,94,1)]';
-            prefix = '⚡ CRITICAL: ';
+            prefix = '🔥 EXCELENCIA: ';
             break;
           case 'arise':
             colorClass = 'text-[#a855f7] font-black text-2xl tracking-[0.25em] drop-shadow-[0_0_20px_rgba(168,85,247,1)]';
-            prefix = '👑 ';
+            prefix = '⭐ ASCENSO: ';
             break;
         }
 

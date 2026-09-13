@@ -17,6 +17,8 @@ interface NavbarProps {
   isSyncing?: boolean;
   onLogout?: () => void;
   onManualSync?: () => void;
+  isMinimalist?: boolean;
+  onToggleMinimalist?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -31,6 +33,8 @@ const Navbar: React.FC<NavbarProps> = ({
   isSyncing,
   onLogout,
   onManualSync,
+  isMinimalist = false,
+  onToggleMinimalist,
 }) => {
   const combatPower = calculateCombatPower(player);
 
@@ -39,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({
     if (!unlocked) {
       const rule = getFeatureUnlockRule(page);
       sound.playBeep(220, 0.15, 'sawtooth');
-      alert(`[ ACCESO RESTRINGIDO POR EL SISTEMA ]\n\nRequiere alcanzar el Nivel ${rule?.minLevel || '?'} para acceder a «${rule?.name || page}».\nActualmente tu nivel es ${player.level}. ¡Completa tus misiones diarias para desbloquear esta dimensión!`);
+      alert(`[ ACCESO RESTRINGIDO POR EL SISTEMA ]\n\nRequiere alcanzar el Nivel ${rule?.minLevel || '?'} para acceder a «${rule?.name || page}».\nActualmente tu nivel es ${player.level}. ¡Completa tus objetivos diarios para desbloquear este módulo!`);
       return;
     }
     sound.playBeep(520, 0.05);
@@ -48,16 +52,16 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 bg-[#080a11]/95 backdrop-blur-2xl border-b border-cyan-500/20 z-50 flex items-center justify-between px-3 md:px-8 select-none shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
-      {/* Brand / Mobile Hunter Profile Plate */}
+      {/* Brand / Mobile Operator Profile Plate */}
       <div className="flex items-center gap-2.5">
-        {/* On Mobile: Hunter Avatar Quick Plate */}
+        {/* On Mobile: Avatar Quick Plate */}
         <div
           onClick={() => {
             sound.playBeep(560, 0.04);
             onOpenProfileModal?.();
           }}
           className="md:hidden flex items-center gap-2 bg-gradient-to-r from-cyan-950/40 to-[#0e1322] border border-cyan-500/30 rounded-xl px-2 py-1 cursor-pointer active:scale-95 transition-transform"
-          title="Tocar para ver Perfil y Atributos del Cazador"
+          title="Tocar para ver Perfil y Métricas de Disciplina"
         >
           <div className="relative">
             <HunterAvatar
@@ -77,7 +81,7 @@ const Navbar: React.FC<NavbarProps> = ({
               LV.{player.level}
             </span>
             <span className="text-cyan-400 text-[8.5px] font-mono font-bold leading-none mt-0.5">
-              {combatPower.toLocaleString()} CP
+              {combatPower.toLocaleString()} DP
             </span>
           </div>
         </div>
@@ -93,14 +97,14 @@ const Navbar: React.FC<NavbarProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-white text-xs font-black tracking-[0.25em] uppercase font-mono">
-                SYSTEM
+                SISTEMA
               </h1>
               <span className="px-1.5 py-0.2 bg-cyan-500/20 border border-cyan-400/40 rounded text-[9px] font-black text-cyan-300 uppercase font-mono">
-                SOLO
+                OPERATIVO
               </span>
             </div>
             <p className="text-slate-400 text-[10px] tracking-widest font-mono">
-              SHADOW LEVELING
+              ALTO RENDIMIENTO & HÁBITOS
             </p>
           </div>
         </div>
@@ -109,14 +113,14 @@ const Navbar: React.FC<NavbarProps> = ({
       {/* Navigation Links (Desktop) */}
       <div className="hidden md:flex items-center gap-1 bg-[#101422]/80 p-1 rounded-xl border border-cyan-500/20">
         {[
-          { id: 'dashboard' as const, name: 'Estado', icon: 'person' },
-          { id: 'dungeons' as const, name: 'Mazmorras', icon: 'hourglass_top' },
+          { id: 'dashboard' as const, name: 'Principal', icon: 'person' },
+          { id: 'dungeons' as const, name: 'Enfoque', icon: 'hourglass_top' },
           { id: 'inventory' as const, name: 'Inventario', icon: 'inventory_2' },
-          { id: 'shop' as const, name: 'Mercado', icon: 'storefront' },
-          { id: 'shadows' as const, name: 'Sombras', icon: 'groups' },
-          { id: 'skills' as const, name: 'Habilidades', icon: 'psychology' },
-          { id: 'bosses' as const, name: 'Jefes', icon: 'swords' },
-          { id: 'analytics' as const, name: 'Analítica', icon: 'insights' },
+          { id: 'shop' as const, name: 'Premios', icon: 'redeem' },
+          { id: 'shadows' as const, name: 'Rutinas', icon: 'groups' },
+          { id: 'skills' as const, name: 'Competencias', icon: 'psychology' },
+          { id: 'bosses' as const, name: 'Desafíos', icon: 'flag' },
+          { id: 'analytics' as const, name: 'Métricas', icon: 'insights' },
         ].map((item) => {
           const isActive = current === item.id;
           const unlocked = isFeatureUnlocked(item.id, player.level);
@@ -185,6 +189,28 @@ const Navbar: React.FC<NavbarProps> = ({
         >
           <span className="material-symbols-outlined text-sm sm:text-base">
             {player.soundEnabled ? 'volume_up' : 'volume_off'}
+          </span>
+        </button>
+
+        {/* Minimalist Ghost HUD Toggle */}
+        <button
+          onClick={() => {
+            sound.playBeep(isMinimalist ? 480 : 720, 0.04);
+            onToggleMinimalist?.();
+          }}
+          className={`size-7 sm:size-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 ${
+            isMinimalist
+              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-sm shadow-cyan-500/30'
+              : 'bg-[#121624] border-white/10 text-slate-400 hover:text-white'
+          }`}
+          title={
+            isMinimalist
+              ? 'Modo Táctico Minimalista [Ghost HUD] ACTIVO (Clic para vista estándar)'
+              : 'Activar Modo Táctico Minimalista [Ghost HUD]'
+          }
+        >
+          <span className="material-symbols-outlined text-sm sm:text-base">
+            {isMinimalist ? 'view_compact_alt' : 'view_compact'}
           </span>
         </button>
 

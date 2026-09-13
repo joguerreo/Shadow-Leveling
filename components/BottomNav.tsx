@@ -12,14 +12,14 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ current, onNavigate, unallocatedPoints = 0, playerLevel = 1 }) => {
   const navItems: { id: 'dashboard' | 'dungeons' | 'inventory' | 'shop' | 'shadows' | 'skills' | 'bosses' | 'analytics'; icon: string; label: string; badge?: number }[] = [
-    { id: 'dashboard', icon: 'person', label: 'Estado', badge: unallocatedPoints },
-    { id: 'dungeons', icon: 'hourglass_top', label: 'Mazmorras' },
-    { id: 'inventory', icon: 'inventory_2', label: 'Mochila' },
-    { id: 'shop', icon: 'storefront', label: 'Mercado' },
-    { id: 'shadows', icon: 'groups', label: 'Sombras' },
-    { id: 'skills', icon: 'psychology', label: 'Skills' },
-    { id: 'bosses', icon: 'swords', label: 'Jefes' },
-    { id: 'analytics', icon: 'insights', label: 'Stats' },
+    { id: 'dashboard', icon: 'person', label: 'Principal', badge: unallocatedPoints },
+    { id: 'dungeons', icon: 'timer', label: 'Enfoque' },
+    { id: 'inventory', icon: 'inventory_2', label: 'Inventario' },
+    { id: 'shop', icon: 'redeem', label: 'Premios' },
+    { id: 'shadows', icon: 'group', label: 'Rutinas' },
+    { id: 'skills', icon: 'psychology', label: 'Competencias' },
+    { id: 'bosses', icon: 'military_tech', label: 'Retos' },
+    { id: 'analytics', icon: 'insights', label: 'Métricas' },
   ];
 
   const handleItemClick = (id: 'dashboard' | 'dungeons' | 'inventory' | 'shop' | 'shadows' | 'skills' | 'bosses' | 'analytics') => {
@@ -28,7 +28,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ current, onNavigate, unallocatedP
     if (!unlocked) {
       const rule = getFeatureUnlockRule(id);
       sound.playBeep(220, 0.15, 'sawtooth');
-      alert(`[ ACCESO RESTRINGIDO POR EL SISTEMA ]\n\nRequiere alcanzar el Nivel ${rule?.minLevel || '?'} para acceder a «${rule?.name || id}».\nActualmente tu nivel es ${playerLevel}. ¡Sigue completando misiones para desbloquear esta dimensión!`);
+      alert(`[ ACCESO RESTRINGIDO POR EL SISTEMA ]\n\nRequiere alcanzar el Nivel ${rule?.minLevel || '?'} para acceder a «${rule?.name || id}».\nActualmente tu nivel es ${playerLevel}. ¡Sigue completando objetivos diarios para desbloquear este módulo!`);
       return;
     }
     sound.playBeep(520, 0.04);
