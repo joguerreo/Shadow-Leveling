@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, Quest, ForbiddenPact, QuestCategory } from '../types';
 import { sound } from '../utils/sound';
+import { FocusCadenceOrb3D } from './three/FocusCadenceOrb3D';
+import { BiometricCoreOrb3D } from './three/BiometricCoreOrb3D';
+import { AttributeMesh3D } from './three/AttributeMesh3D';
+import { QuestConstellation3D } from './three/QuestConstellation3D';
+import { PactContainmentSeal3D } from './three/PactContainmentSeal3D';
+import { QuestOrb3D } from './three/QuestOrb3D';
+import { PactOrb3D } from './three/PactOrb3D';
+import { QuestSpatialCarousel3D } from './three/QuestSpatialCarousel3D';
+import { PactSpatialCarousel3D } from './three/PactSpatialCarousel3D';
 
 interface PortalHubProps {
   player: Player;
@@ -86,10 +95,18 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   const [newPactCategory, setNewPactCategory] = useState<'nutrition' | 'health' | 'discipline' | 'mind'>('discipline');
   const [newPactVoice, setNewPactVoice] = useState<string>('');
 
-  // Focus (Pomodoro) Timer State
+  // Focus (Pomodoro) Timer & Ambient Audio State
   const [focusSeconds, setFocusSeconds] = useState<number>(25 * 60);
   const [focusInitialSeconds, setFocusInitialSeconds] = useState<number>(25 * 60);
   const [isFocusRunning, setIsFocusRunning] = useState<boolean>(false);
+  const [ambientSoundMode, setAmbientSoundMode] = useState<'alpha' | 'rain' | 'noise' | 'off'>('alpha');
+  const [ambientVolume, setAmbientVolume] = useState<number>(0.12);
+  const [isAmbientPlaying, setIsAmbientPlaying] = useState<boolean>(false);
+  const [focusVisualMode, setFocusVisualMode] = useState<'3d' | 'classic'>('3d');
+  const [statsVisualMode, setStatsVisualMode] = useState<'3d' | '2d'>('3d');
+  const [hubCoreMode, setHubCoreMode] = useState<'3d' | '2d'>('3d');
+  const [questVisualMode, setQuestVisualMode] = useState<'spatial' | 'grid' | 'classic'>('spatial');
+  const [pactVisualMode, setPactVisualMode] = useState<'spatial' | 'grid' | 'classic'>('spatial');
 
   // Wipe transition
   const [wipeActive, setWipeActive] = useState<boolean>(false);
@@ -150,7 +167,15 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     return () => clearTimeout(timer);
   }, [player.personalMotto]);
 
-  // Focus Timer interval
+  // Stop ambient sound if switching away from focus
+  useEffect(() => {
+    if (activeScene !== 'focus') {
+      sound.stopAmbientFocus();
+      setIsAmbientPlaying(false);
+    }
+  }, [activeScene]);
+
+  // Focus Timer interval & audio synchronization
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isFocusRunning && focusSeconds > 0) {
@@ -159,14 +184,76 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       }, 1000);
     } else if (isFocusRunning && focusSeconds === 0) {
       setIsFocusRunning(false);
+      sound.stopAmbientFocus();
+      setIsAmbientPlaying(false);
       sound.playLevelUp();
       sound.speakMotivation('Sesión de enfoque completada. Excelente disciplina.');
-      showToast('Sesión de enfoque concluida (+15 XP)');
+      showToast('Sesión de enfoque concluida (+20 XP, +40 Puntos)');
     }
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [isFocusRunning, focusSeconds]);
+
+  // Focus Audio Handlers
+  const handleToggleFocusAmbient = (mode?: 'alpha' | 'rain' | 'noise' | 'off') => {
+    const nextMode = mode !== undefined ? mode : ambientSoundMode;
+    if (mode !== undefined) {
+      setAmbientSoundMode(mode);
+    }
+
+    if (nextMode === 'off') {
+      sound.stopAmbientFocus();
+      setIsAmbientPlaying(false);
+      return;
+    }
+
+    if (isAmbientPlaying && mode === undefined) {
+      sound.stopAmbientFocus();
+      setIsAmbientPlaying(false);
+    } else {
+      sound.startAmbientFocus(nextMode, ambientVolume);
+      setIsAmbientPlaying(true);
+    }
+  };
+
+  const handleVolumeChange = (vol: number) => {
+    setAmbientVolume(vol);
+    if (isAmbientPlaying && ambientSoundMode !== 'off') {
+      sound.startAmbientFocus(ambientSoundMode, vol);
+    }
+  };
+
+  const handleToggleFocusTimer = () => {
+    const nextState = !isFocusRunning;
+    sound.playBeep(nextState ? 660 : 440, 0.05);
+    setIsFocusRunning(nextState);
+
+    if (nextState) {
+      if (ambientSoundMode !== 'off') {
+        sound.startAmbientFocus(ambientSoundMode, ambientVolume);
+        setIsAmbientPlaying(true);
+      }
+      sound.speakMotivation('Iniciando sesión de enfoque profundo.');
+    } else {
+      sound.stopAmbientFocus();
+      setIsAmbientPlaying(false);
+    }
+  };
+
+  // 16s Box Breathing cycle (4s Inhale, 4s Hold, 4s Exhale, 4s Pause)
+  const elapsedFocusSeconds = Math.max(0, focusInitialSeconds - focusSeconds);
+  const cycleIndex = elapsedFocusSeconds % 16;
+  const breathePhase: 'inhale' | 'hold-in' | 'exhale' | 'hold-out' =
+    cycleIndex < 4 ? 'inhale' : cycleIndex < 8 ? 'hold-in' : cycleIndex < 12 ? 'exhale' : 'hold-out';
+  const breatheLabel =
+    breathePhase === 'inhale'
+      ? 'Inhala profundamente (4s)'
+      : breathePhase === 'hold-in'
+      ? 'Sostén la respiración (4s)'
+      : breathePhase === 'exhale'
+      ? 'Exhala despacio (4s)'
+      : 'Pausa en calma (4s)';
 
   const showToast = (msg: string) => {
     sound.playBeep(640, 0.04);
@@ -270,7 +357,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   };
 
   // Open focused hold-to-complete screen for quests
-  const handleOpenQuestDetail = (quest: Quest, e: React.MouseEvent) => {
+  const handleOpenQuestDetail = (quest: Quest, e?: React.MouseEvent) => {
     setSelectedQuestId(quest.id);
     setHoldProgress(0);
     setIsHolding(false);
@@ -708,43 +795,82 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               {sysMessage}
             </div>
 
-            {/* Central Level Core (Breathing XP Ring) */}
-            <div
-              className="relative w-[130px] h-[130px] sm:w-[150px] sm:h-[150px] mb-2 animate-breathe cursor-pointer group shrink-0"
-              onClick={() => {
-                sound.playBeep(640, 0.05);
-                sound.speakMotivation(`Nivel ${player.level}. ${Math.round(xpRatio * 100)}% de progreso.`);
-              }}
-              title="Toca para verificar progreso"
-            >
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
-                <circle cx="100" cy="100" r="88" fill="none" stroke="#0c1322" strokeWidth="8" />
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="88"
-                  fill="none"
-                  stroke={isLevelFlashing ? '#ffcf6b' : '#38bdf8'}
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={RING_CIRCUMFERENCE}
-                  strokeDashoffset={ringDashoffset}
-                  className={`transition-all duration-700 ease-out ${
-                    isLevelFlashing ? 'drop-shadow-[0_0_16px_#ff9d2e]' : 'drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]'
-                  }`}
-                />
-              </svg>
-
-              {/* Core Level */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {/* Central Level Core (Breathing XP Ring / 3D Biometric Reactor) */}
+            <div className="flex flex-col items-center">
+              {hubCoreMode === '3d' ? (
                 <div
-                  className={`font-rajdhani font-bold text-[42px] sm:text-[48px] text-[#e7edf7] leading-none transition-transform duration-300 ${
-                    isLevelBumping ? 'scale-125 text-[#ffcf6b]' : 'scale-100'
-                  }`}
+                  className="relative w-[130px] h-[130px] sm:w-[150px] sm:h-[150px] mb-2 cursor-pointer group shrink-0 flex items-center justify-center"
+                  onClick={() => {
+                    sound.playBeep(640, 0.05);
+                    sound.speakMotivation(`Reactor biométrico activo. Nivel ${player.level}. Energía al ${Math.round(((player.hp ?? 100) / (player.maxHp ?? 100)) * 100)}%.`);
+                  }}
+                  title="Reactor Biométrico 3D (Toca para inspeccionar)"
                 >
-                  {player.level}
+                  <BiometricCoreOrb3D
+                    level={player.level}
+                    hpPercent={((player.hp ?? 100) / (player.maxHp ?? 100)) * 100}
+                    streakDays={player.streakDays ?? 0}
+                  />
+                  <div className="absolute -bottom-1 flex items-center gap-1 bg-[#0c1322]/90 border border-cyan-500/40 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 font-bold backdrop-blur-md shadow-md pointer-events-none">
+                    <span>NV {player.level}</span>
+                  </div>
                 </div>
-                <div className="text-[10px] tracking-[0.2em] font-mono text-[#7c8aa8] mt-0.5 font-semibold">NIVEL</div>
+              ) : (
+                <div
+                  className="relative w-[130px] h-[130px] sm:w-[150px] sm:h-[150px] mb-2 animate-breathe cursor-pointer group shrink-0"
+                  onClick={() => {
+                    sound.playBeep(640, 0.05);
+                    sound.speakMotivation(`Nivel ${player.level}. ${Math.round(xpRatio * 100)}% de progreso.`);
+                  }}
+                  title="Toca para verificar progreso"
+                >
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="88" fill="none" stroke="#0c1322" strokeWidth="8" />
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r="88"
+                      fill="none"
+                      stroke={isLevelFlashing ? '#ffcf6b' : '#38bdf8'}
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      strokeDashoffset={ringDashoffset}
+                      className={`transition-all duration-700 ease-out ${
+                        isLevelFlashing ? 'drop-shadow-[0_0_16px_#ff9d2e]' : 'drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]'
+                      }`}
+                    />
+                  </svg>
+
+                  {/* Core Level */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div
+                      className={`font-rajdhani font-bold text-[42px] sm:text-[48px] text-[#e7edf7] leading-none transition-transform duration-300 ${
+                        isLevelBumping ? 'scale-125 text-[#ffcf6b]' : 'scale-100'
+                      }`}
+                    >
+                      {player.level}
+                    </div>
+                    <div className="text-[10px] tracking-[0.2em] font-mono text-[#7c8aa8] mt-0.5 font-semibold">NIVEL</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Core View Toggle */}
+              <div className="flex items-center gap-1 mb-2">
+                <button
+                  onClick={() => {
+                    sound.playBeep(520, 0.03);
+                    setHubCoreMode(hubCoreMode === '3d' ? '2d' : '3d');
+                  }}
+                  className="px-2 py-0.5 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] text-[10px] font-mono text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+                  title="Alternar entre reactor 3D y anillo 2D"
+                >
+                  <span className="material-symbols-outlined text-xs">
+                    {hubCoreMode === '3d' ? 'view_in_ar' : 'circle'}
+                  </span>
+                  <span>{hubCoreMode === '3d' ? 'Reactor 3D' : 'Anillo 2D'}</span>
+                </button>
               </div>
             </div>
 
@@ -770,6 +896,55 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* View Mode Toggle: Espacial 3D vs Cuadrícula vs Clásico */}
+                  <div className="flex items-center gap-1 bg-[#0c1322] border border-[#1c2a45] rounded-lg p-0.5">
+                    <button
+                      onClick={() => {
+                        sound.playBeep(520, 0.03);
+                        setQuestVisualMode('spatial');
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                        questVisualMode === 'spatial'
+                          ? 'bg-cyan-600/80 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Navegación espacial de orbes 3D con desplazamiento táctil"
+                    >
+                      <span className="material-symbols-outlined text-xs">cyclone</span>
+                      <span>Espacial 3D</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playBeep(490, 0.03);
+                        setQuestVisualMode('grid');
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                        questVisualMode === 'grid'
+                          ? 'bg-cyan-600/80 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Cuadrícula de orbes 3D"
+                    >
+                      <span className="material-symbols-outlined text-xs">grid_view</span>
+                      <span className="hidden sm:inline">Cuadrícula</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playBeep(460, 0.03);
+                        setQuestVisualMode('classic');
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                        questVisualMode === 'classic'
+                          ? 'bg-cyan-600/80 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Círculos clásicos 2D"
+                    >
+                      <span className="material-symbols-outlined text-xs">adjust</span>
+                      <span className="hidden sm:inline">Clásico</span>
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => setIsCreateQuestOpen(true)}
                     className="px-2.5 py-1 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-mono font-bold transition-all active:scale-95 shadow-md flex items-center gap-1"
@@ -823,15 +998,23 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                 </button>
               </div>
 
-              {/* GRID OF OBJETIVOS: Minimalist Cards (Title only + Category, enters detail for full desc) */}
-              {filteredQuests.length === 0 ? (
+              {/* 3D Spatial Carousel OR Grid of Circular Orbes */}
+              {questVisualMode === 'spatial' ? (
+                <div className="w-full">
+                  <QuestSpatialCarousel3D
+                    quests={filteredQuests}
+                    onSelectQuest={(q) => handleOpenQuestDetail(q)}
+                    onQuickComplete={(q) => handleQuickCompleteQuest(q)}
+                  />
+                </div>
+              ) : filteredQuests.length === 0 ? (
                 <div className="py-12 text-center text-xs font-mono text-slate-500 bg-[#0c1322]/60 rounded-2xl border border-[#1c2a45]">
                   {filterMode === 'completed'
                     ? 'Aún no has completado objetivos hoy.'
                     : 'No hay objetivos en esta sección. Pulsa "+ Nuevo" para crear uno.'}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 w-full">
                   {filteredQuests.map((quest) => {
                     const color = getCategoryColor(quest.category);
                     const iconName = getCategoryMaterialIcon(quest.category);
@@ -840,75 +1023,94 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                       <div
                         key={quest.id}
                         onClick={(e) => handleOpenQuestDetail(quest, e)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group backdrop-blur-md relative overflow-hidden ${
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center text-center justify-between gap-2.5 group backdrop-blur-md relative overflow-hidden ${
                           quest.completed
-                            ? 'bg-[#0a0f1a]/50 border-white/5 opacity-60 hover:opacity-85'
-                            : 'bg-[#0c1322]/90 border-[#1c2a45] hover:border-cyan-500/50 hover:bg-[#0e1728] shadow-md'
+                            ? 'bg-[#0a0f1a]/50 border-white/5 opacity-65 hover:opacity-90'
+                            : 'bg-[#0c1322]/90 border-[#1c2a45] hover:border-cyan-500/60 hover:bg-[#0e1728] shadow-lg hover:shadow-cyan-950/30'
                         }`}
                       >
-                        {/* Direct Checkbox button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleQuickCompleteQuest(quest);
-                          }}
-                          className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
-                            quest.completed
-                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-400'
-                              : 'border-slate-600 hover:border-cyan-400 text-transparent hover:text-cyan-400/40 bg-white/5'
-                          }`}
-                          title={quest.completed ? 'Objetivo completado' : 'Marcar como completado'}
-                        >
-                          <span className="material-symbols-outlined text-base font-bold">check</span>
-                        </button>
+                        {/* Circular Orb Container: 3D Sphere or 2D Classic Circle */}
+                        <div className="relative flex items-center justify-center my-1">
+                          {questVisualMode === 'grid' ? (
+                            <div className="relative w-16 h-16 flex items-center justify-center">
+                              <QuestOrb3D
+                                category={quest.category}
+                                completed={quest.completed}
+                                size={64}
+                              />
+                              {/* Overlay Icon in the center */}
+                              <span
+                                className={`material-symbols-outlined text-lg absolute pointer-events-none transition-transform group-hover:scale-110 ${
+                                  quest.completed ? 'text-emerald-400' : 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+                                }`}
+                              >
+                                {quest.completed ? 'check_circle' : iconName}
+                              </span>
+                            </div>
+                          ) : (
+                            /* Classic 2D Circular Node */
+                            <div
+                              className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-transform group-hover:scale-105 ${
+                                quest.completed
+                                  ? 'bg-emerald-500/20 border-emerald-400/80 text-emerald-400'
+                                  : 'border-cyan-500/40 text-cyan-300'
+                              }`}
+                              style={{
+                                backgroundColor: quest.completed ? undefined : `${color}20`,
+                                borderColor: quest.completed ? undefined : color,
+                              }}
+                            >
+                              <span className="material-symbols-outlined text-2xl">
+                                {quest.completed ? 'check' : iconName}
+                              </span>
+                            </div>
+                          )}
 
-                        {/* Title & Subtle Category - NO description here, clean and scannable */}
-                        <div className="flex-1 min-w-0 pr-1">
+                          {/* Quick Complete / Status Badge */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickCompleteQuest(quest);
+                            }}
+                            className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all shadow-md ${
+                              quest.completed
+                                ? 'bg-emerald-500 border-emerald-300 text-black'
+                                : 'bg-[#0c1322] border-slate-600 hover:border-cyan-400 text-slate-400 hover:text-white'
+                            }`}
+                            title={quest.completed ? 'Completado' : 'Completar rápido'}
+                          >
+                            <span className="material-symbols-outlined text-[13px] font-bold">check</span>
+                          </button>
+                        </div>
+
+                        {/* Title & Rewards info */}
+                        <div className="w-full min-w-0">
                           <h4
-                            className={`text-sm font-semibold font-sans leading-snug transition-colors line-clamp-1 ${
+                            className={`text-xs font-semibold font-sans leading-tight transition-colors line-clamp-2 ${
                               quest.completed ? 'text-slate-500 line-through' : 'text-white group-hover:text-cyan-200'
                             }`}
                           >
                             {quest.title}
                           </h4>
-                          <div className="flex items-center gap-2 mt-1">
+
+                          <div className="flex items-center justify-center gap-1.5 mt-1.5 flex-wrap">
                             <span
-                              className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold flex items-center gap-1"
+                              className="text-[9px] font-mono px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold"
                               style={{ color: color, background: `${color}15`, border: `1px solid ${color}30` }}
                             >
-                              <span className="material-symbols-outlined text-[11px]">{iconName}</span>
-                              <span>{getCategoryLabel(quest.category)}</span>
+                              {getCategoryLabel(quest.category)}
                             </span>
-                            <span className="text-[11px] font-mono font-bold text-amber-300">
+                            <span className="text-[10px] font-mono font-bold text-amber-300">
                               +{quest.rewards.xp} XP
                             </span>
-                            {quest.targetCount && (
-                              <span className="text-[10px] font-mono text-slate-400">
-                                {quest.currentCount || 0}/{quest.targetCount}
-                              </span>
-                            )}
                           </div>
                         </div>
 
-                        {/* Enter detail indicator & Delete */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          {onDeleteQuest && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteQuest(quest.id);
-                                showToast('Objetivo eliminado');
-                              }}
-                              className="p-1 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                              title="Eliminar objetivo"
-                            >
-                              <span className="material-symbols-outlined text-sm">delete</span>
-                            </button>
-                          )}
-                          <span className="material-symbols-outlined text-slate-500 group-hover:text-cyan-300 text-lg transition-colors">
-                            chevron_right
-                          </span>
+                        {/* Hover hint */}
+                        <div className="text-[10px] font-mono text-cyan-400/70 group-hover:text-cyan-300 flex items-center justify-center gap-0.5">
+                          <span>Inspeccionar</span>
+                          <span className="material-symbols-outlined text-xs">arrow_forward</span>
                         </div>
                       </div>
                     );
@@ -950,6 +1152,24 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               <span className="text-xs font-mono font-bold text-amber-300 bg-amber-950/40 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
                 +{activeQuest.rewards.xp} XP
               </span>
+            </div>
+
+            {/* Cinematic Expanded 3D Orb - Unfolding at center */}
+            <div className="relative my-3 flex items-center justify-center animate-scale-in">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <QuestOrb3D
+                  category={activeQuest.category}
+                  completed={activeQuest.completed}
+                  size={110}
+                />
+                <span
+                  className={`material-symbols-outlined text-2xl absolute pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] ${
+                    activeQuest.completed ? 'text-emerald-400' : 'text-white'
+                  }`}
+                >
+                  {activeQuest.completed ? 'check_circle' : getCategoryMaterialIcon(activeQuest.category)}
+                </span>
+              </div>
             </div>
 
             {/* Full Title */}
@@ -1065,32 +1285,78 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               <span>Competencias & Hábitos</span>
             </div>
 
-            {/* Concentric SVG Rings */}
-            <div className="relative my-2">
-              <svg viewBox="0 0 200 200" width="220" height="220">
-                {attrList.map((attr) => {
-                  const circ = 2 * Math.PI * attr.r;
-                  const off = circ * (1 - Math.min(100, attr.val) / 100);
-                  return (
-                    <g key={attr.code}>
-                      <circle cx="100" cy="100" r={attr.r} fill="none" stroke="#0c1322" strokeWidth="8" />
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r={attr.r}
-                        fill="none"
-                        stroke={attr.color}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={circ.toFixed(2)}
-                        strokeDashoffset={off.toFixed(2)}
-                        transform="rotate(-90 100 100)"
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
+            {/* View Switcher: 3D Holographic Pyramid vs 2D Concentric Rings */}
+            <div className="flex items-center gap-1.5 mb-3 bg-[#0c1322]/90 p-1 rounded-xl border border-[#1c2a45]">
+              <button
+                onClick={() => {
+                  sound.playBeep(480, 0.03);
+                  setStatsVisualMode('3d');
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                  statsVisualMode === '3d'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xs">view_in_ar</span>
+                <span>Pirámide 3D</span>
+              </button>
+              <button
+                onClick={() => {
+                  sound.playBeep(480, 0.03);
+                  setStatsVisualMode('2d');
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                  statsVisualMode === '2d'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xs">radio_button_checked</span>
+                <span>Anillos 2D</span>
+              </button>
             </div>
+
+            {/* Visual Display */}
+            {statsVisualMode === '3d' ? (
+              <div className="w-full h-56 max-w-xs relative my-1 flex items-center justify-center">
+                <AttributeMesh3D
+                  str={player.attributes.str.value}
+                  intVal={player.attributes.int.value}
+                  vit={player.attributes.vit.value}
+                  wis={player.attributes.wis.value}
+                />
+                <div className="absolute bottom-1 text-[10px] font-mono text-purple-300/80 pointer-events-none">
+                  Arrastra para rotar la pirámide
+                </div>
+              </div>
+            ) : (
+              <div className="relative my-2">
+                <svg viewBox="0 0 200 200" width="220" height="220">
+                  {attrList.map((attr) => {
+                    const circ = 2 * Math.PI * attr.r;
+                    const off = circ * (1 - Math.min(100, attr.val) / 100);
+                    return (
+                      <g key={attr.code}>
+                        <circle cx="100" cy="100" r={attr.r} fill="none" stroke="#0c1322" strokeWidth="8" />
+                        <circle
+                          cx="100"
+                          cy="100"
+                          r={attr.r}
+                          fill="none"
+                          stroke={attr.color}
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={circ.toFixed(2)}
+                          strokeDashoffset={off.toFixed(2)}
+                          transform="rotate(-90 100 100)"
+                        />
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            )}
 
             {/* Attribute Legend & Stat Points Allocation */}
             <div className="w-full max-w-xs flex flex-col gap-2 mt-2">
@@ -1153,6 +1419,55 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* View Mode Toggle: Espacial 3D vs Cuadrícula vs Clásico */}
+                <div className="flex items-center gap-1 bg-[#0c1322] border border-[#1c2a45] rounded-lg p-0.5">
+                  <button
+                    onClick={() => {
+                      sound.playBeep(520, 0.03);
+                      setPactVisualMode('spatial');
+                    }}
+                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      pactVisualMode === 'spatial'
+                        ? 'bg-rose-600/80 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Navegación espacial 3D con desplazamiento táctil"
+                  >
+                    <span className="material-symbols-outlined text-xs">cyclone</span>
+                    <span>Espacial 3D</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playBeep(490, 0.03);
+                      setPactVisualMode('grid');
+                    }}
+                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      pactVisualMode === 'grid'
+                        ? 'bg-rose-600/80 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Cuadrícula de orbes 3D"
+                  >
+                    <span className="material-symbols-outlined text-xs">grid_view</span>
+                    <span className="hidden sm:inline">Cuadrícula</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playBeep(460, 0.03);
+                      setPactVisualMode('classic');
+                    }}
+                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      pactVisualMode === 'classic'
+                        ? 'bg-rose-600/80 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Círculos clásicos 2D"
+                  >
+                    <span className="material-symbols-outlined text-xs">adjust</span>
+                    <span className="hidden sm:inline">Clásico</span>
+                  </button>
+                </div>
+
                 {onAddCustomPact && (
                   <button
                     onClick={() => setIsCreatePactOpen(true)}
@@ -1175,112 +1490,153 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               </div>
             </div>
 
-            {/* Compromisos in Grid: Minimalist title cards, click to reveal full description */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              {activePacts.length === 0 ? (
-                <div className="col-span-full text-xs text-slate-500 font-mono py-10 text-center bg-[#0c1322]/80 rounded-2xl border border-[#1c2a45]">
-                  No hay compromisos registrados en el Sistema. Pulsa "+ Nuevo" para agregar uno.
-                </div>
-              ) : (
-                activePacts.map((pact) => {
-                  const iconName = getPactMaterialIcon(pact);
-                  const isExpanded = selectedPactId === pact.id;
+            {/* Spatial 3D Carousel OR Circular Orbs Grid */}
+            {pactVisualMode === 'spatial' ? (
+              <div className="w-full">
+                <PactSpatialCarousel3D
+                  pacts={activePacts}
+                  onSelectPact={(pact) => setSelectedPactId(selectedPactId === pact.id ? null : pact.id)}
+                  onRegisterInfraction={(pact) => handlePactInfractionWithVoice(pact)}
+                />
 
-                  return (
-                    <div
-                      key={pact.id}
-                      onClick={() => setSelectedPactId(isExpanded ? null : pact.id)}
-                      className={`p-3.5 rounded-xl bg-[#0c1322]/90 border transition-all cursor-pointer flex flex-col justify-between gap-2.5 backdrop-blur-md relative overflow-hidden group ${
-                        isExpanded
-                          ? 'border-rose-500 shadow-lg shadow-rose-950/30 bg-[#120e17]'
-                          : 'border-[#1c2a45] hover:border-rose-500/40 hover:bg-[#0f111a]'
-                      }`}
-                    >
-                      {/* Top Bar: Icon, Title, Streak & Infraction button */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-9 h-9 rounded-xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
-                            <span className="material-symbols-outlined text-lg">{iconName}</span>
-                          </div>
+                {/* Unfolded Pact Details when an orb is opened */}
+                {activePactDetail && (
+                  <div className="w-full max-w-xl mx-auto mt-4 p-4 rounded-2xl bg-[#0e1424] border border-rose-500/50 shadow-2xl animate-fade-in flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-rose-500/20 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-rose-400">shield</span>
+                        <h4 className="text-base font-bold text-white font-sans">{activePactDetail.title}</h4>
+                      </div>
+                      <button
+                        onClick={() => setSelectedPactId(null)}
+                        className="text-xs font-mono text-slate-400 hover:text-white flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">close</span> Cerrar
+                      </button>
+                    </div>
 
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-sm font-semibold font-sans text-white leading-tight truncate">
-                              {pact.title}
-                            </h4>
-                            <div className="text-[11px] font-mono text-amber-400 flex items-center gap-1 mt-0.5">
-                              <span className="material-symbols-outlined text-xs text-amber-400">local_fire_department</span>
-                              <span>{pact.cleanStreakDays}d limpio</span>
+                    <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed">
+                      {activePactDetail.description || 'Compromiso de disciplina y autocontrol activo en el Sistema.'}
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-xs text-center">
+                      <div className="p-2 rounded-xl bg-[#090d17] border border-[#1c2a45]">
+                        <div className="text-[10px] text-slate-400">Racha Limpia</div>
+                        <div className="text-emerald-400 font-bold text-sm">{activePactDetail.cleanStreakDays} días</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-[#090d17] border border-[#1c2a45]">
+                        <div className="text-[10px] text-slate-400">Deslices Totales</div>
+                        <div className="text-rose-400 font-bold text-sm">{activePactDetail.totalInfractions}</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-[#090d17] border border-[#1c2a45]">
+                        <div className="text-[10px] text-slate-400">Penalización HP</div>
+                        <div className="text-rose-300 font-bold text-sm">-{activePactDetail.hpDamage} HP</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-[#090d17] border border-[#1c2a45]">
+                        <div className="text-[10px] text-slate-400">Puntos de Disciplina</div>
+                        <div className="text-amber-400 font-bold text-sm">-{activePactDetail.goldPenalty}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 w-full">
+                {activePacts.length === 0 ? (
+                  <div className="col-span-full text-xs text-slate-500 font-mono py-10 text-center bg-[#0c1322]/80 rounded-2xl border border-[#1c2a45]">
+                    No hay compromisos registrados en el Sistema. Pulsa "+ Nuevo" para agregar uno.
+                  </div>
+                ) : (
+                  activePacts.map((pact) => {
+                    const iconName = getPactMaterialIcon(pact);
+                    const isExpanded = selectedPactId === pact.id;
+
+                    return (
+                      <div
+                        key={pact.id}
+                        onClick={() => setSelectedPactId(isExpanded ? null : pact.id)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center text-center justify-between gap-2.5 backdrop-blur-md relative overflow-hidden group ${
+                          isExpanded
+                            ? 'border-rose-500 shadow-xl shadow-rose-950/40 bg-[#120e17]'
+                            : 'bg-[#0c1322]/90 border-[#1c2a45] hover:border-rose-500/50 hover:bg-[#0f111a] shadow-lg'
+                        }`}
+                      >
+                        {/* Circular Orb Container: 3D Sphere or 2D Classic Circle */}
+                        <div className="relative flex items-center justify-center my-1">
+                          {pactVisualMode === 'grid' ? (
+                            <div className="relative w-16 h-16 flex items-center justify-center">
+                              <PactOrb3D
+                                streakDays={pact.cleanStreakDays}
+                                totalInfractions={pact.totalInfractions}
+                                size={64}
+                              />
+                              {/* Overlay Icon in the center */}
+                              <span className="material-symbols-outlined text-lg absolute pointer-events-none text-rose-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform group-hover:scale-110">
+                                {iconName}
+                              </span>
                             </div>
-                          </div>
-                        </div>
+                          ) : (
+                            /* Classic 2D Circular Node */
+                            <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 border-rose-500/40 bg-rose-950/30 text-rose-400 transition-transform group-hover:scale-105">
+                              <span className="material-symbols-outlined text-2xl">{iconName}</span>
+                            </div>
+                          )}
 
-                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Infraction quick button */}
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePactInfractionWithVoice(pact);
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-xs font-mono font-bold active:scale-95 transition-all shadow-md flex items-center gap-1"
+                            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border border-rose-500/50 bg-rose-950/90 hover:bg-rose-700 text-rose-300 hover:text-white flex items-center justify-center text-xs transition-all shadow-md active:scale-95"
                             title="Registrar desliz"
                           >
-                            <span className="material-symbols-outlined text-xs">warning</span>
-                            <span>Desliz</span>
+                            <span className="material-symbols-outlined text-[13px] font-bold">warning</span>
                           </button>
+                        </div>
 
-                          <span className={`material-symbols-outlined text-slate-500 transition-transform ${isExpanded ? 'rotate-90 text-rose-400' : ''}`}>
-                            chevron_right
-                          </span>
+                      {/* Title & Streak info */}
+                      <div className="w-full min-w-0">
+                        <h4 className="text-xs font-semibold font-sans text-white leading-tight truncate">
+                          {pact.title}
+                        </h4>
+
+                        <div className="text-[10px] font-mono text-amber-400 flex items-center justify-center gap-1 mt-1">
+                          <span className="material-symbols-outlined text-xs text-amber-400">local_fire_department</span>
+                          <span>{pact.cleanStreakDays}d limpio</span>
                         </div>
                       </div>
 
-                      {/* Full Description & Penalty Breakdown - displayed on click/entry */}
+                      {/* Expanded Details Modal / Drawer on Click */}
                       {isExpanded && (
-                        <div className="mt-2 pt-3 border-t border-rose-500/20 flex flex-col gap-2.5 animate-fade-in">
-                          <div className="p-3 rounded-lg bg-[#070a12] border border-[#1c2a45]">
-                            <div className="text-[10px] font-mono text-rose-400 uppercase tracking-wider mb-1 font-semibold flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">notes</span>
-                              <span>Descripción del Compromiso</span>
-                            </div>
-                            <p className="text-xs text-slate-200 leading-relaxed font-sans">
-                              {pact.description || 'Sin descripción adicional.'}
-                            </p>
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full mt-2 pt-2 border-t border-rose-500/20 text-left flex flex-col gap-2 animate-fade-in"
+                        >
+                          <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                            {pact.description || 'Sin descripción adicional.'}
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                            <span className="text-rose-400 font-bold">-{pact.hpDamage} HP</span>
+                            <span className="text-amber-400 font-bold">-{pact.goldPenalty} Pts</span>
                           </div>
-
-                          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
-                            <div className="flex items-center gap-3">
-                              <span className="text-rose-400 font-bold flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-xs">battery_alert</span> -{pact.hpDamage} Energía
-                              </span>
-                              <span className="text-amber-400 font-bold flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-xs">toll</span> -{pact.goldPenalty} Puntos
-                              </span>
-                            </div>
-
-                            {onTogglePactActive && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onTogglePactActive(pact.id);
-                                }}
-                                className="text-[10px] text-slate-400 hover:text-white underline"
-                              >
-                                {pact.active ? 'Desactivar' : 'Activar'}
-                              </button>
-                            )}
-                          </div>
-
-                          {pact.customVoicePrompt && (
-                            <div className="text-xs font-mono text-slate-400 bg-rose-950/20 p-2 rounded border border-rose-500/20 italic">
-                              "{pact.customVoicePrompt}"
-                            </div>
-                          )}
                         </div>
                       )}
+
+                      {/* Hover hint */}
+                      <div className="text-[10px] font-mono text-rose-400/70 group-hover:text-rose-300 flex items-center justify-center gap-0.5">
+                        <span>{isExpanded ? 'Cerrar' : 'Detalles'}</span>
+                        <span className={`material-symbols-outlined text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                          chevron_right
+                        </span>
+                      </div>
                     </div>
                   );
                 })
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -1288,7 +1644,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
         {/* SCENE 5: FOCUS (POMODORO INTEGRADO)                                  */}
         {/* ==================================================================== */}
         {activeScene === 'focus' && (
-          <div className="w-full max-w-md flex flex-col items-center text-center animate-fade-in py-4 my-auto pb-24">
+          <div className="w-full max-w-lg flex flex-col items-center text-center animate-fade-in py-2 my-auto pb-24">
             <button
               onClick={() => triggerWipeTransition('hub')}
               className="self-start text-xs sm:text-sm text-[#7c8aa8] hover:text-white flex items-center gap-1 font-mono transition-colors mb-2"
@@ -1296,21 +1652,61 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               <span className="material-symbols-outlined text-sm">arrow_back</span> Volver a Objetivos
             </button>
 
-            <h3 className="font-sans font-bold text-2xl text-[#e7edf7] my-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-purple-400">timer</span>
-              <span>Sesión de Enfoque Profundo</span>
-            </h3>
-            <p className="text-xs font-mono text-purple-300 mb-6">Bloque de Trabajo Profundo y Concentración</p>
+            <div className="flex items-center justify-between w-full mb-1">
+              <h3 className="font-sans font-bold text-xl sm:text-2xl text-[#e7edf7] flex items-center gap-2">
+                <span className="material-symbols-outlined text-purple-400">timer</span>
+                <span>Sesión de Enfoque Profundo</span>
+              </h3>
+
+              {/* Visual Mode Selector: 3D Orb vs Digital */}
+              <div className="flex items-center gap-1 bg-[#0c1322]/90 p-1 rounded-lg border border-[#1c2a45]">
+                <button
+                  onClick={() => {
+                    sound.playBeep(480, 0.03);
+                    setFocusVisualMode('3d');
+                  }}
+                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
+                    focusVisualMode === '3d'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Esfera 3D de respiración"
+                >
+                  Esfera 3D
+                </button>
+                <button
+                  onClick={() => {
+                    sound.playBeep(480, 0.03);
+                    setFocusVisualMode('classic');
+                  }}
+                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
+                    focusVisualMode === 'classic'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Reloj digital clásico"
+                >
+                  Digital
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs font-mono text-purple-300 mb-4 self-start">
+              Bloque de Trabajo Profundo, Respiración y Audio Ambiental
+            </p>
 
             {/* Time Presets */}
-            <div className="flex items-center gap-2 mb-6">
-              {[15, 25, 45].map((mins) => (
+            <div className="flex items-center gap-2 mb-4">
+              {[15, 25, 45, 60].map((mins) => (
                 <button
                   key={mins}
                   onClick={() => {
                     setIsFocusRunning(false);
+                    sound.stopAmbientFocus();
+                    setIsAmbientPlaying(false);
                     setFocusInitialSeconds(mins * 60);
                     setFocusSeconds(mins * 60);
+                    sound.playBeep(520, 0.03);
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all ${
                     focusInitialSeconds === mins * 60
@@ -1323,30 +1719,129 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               ))}
             </div>
 
-            {/* Timer Display */}
-            <div className="relative w-48 h-48 rounded-full border-2 border-purple-500/40 bg-[#0c1322] flex flex-col items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.25)] mb-8">
-              <span className="font-rajdhani font-bold text-5xl text-white tracking-widest">
-                {Math.floor(focusSeconds / 60)
-                  .toString()
-                  .padStart(2, '0')}
-                :{(focusSeconds % 60).toString().padStart(2, '0')}
-              </span>
-              <span className="text-[10px] font-mono text-purple-400 mt-1 uppercase tracking-wider">
-                {isFocusRunning ? 'ENFOQUE ACTIVO' : 'EN ESPERA'}
-              </span>
+            {/* Central Visual & Timer Display */}
+            {focusVisualMode === '3d' ? (
+              <div className="relative w-56 h-56 flex flex-col items-center justify-center mb-4">
+                <FocusCadenceOrb3D
+                  isRunning={isFocusRunning}
+                  isPaused={!isFocusRunning && focusSeconds < focusInitialSeconds}
+                  breathePhase={breathePhase}
+                />
+                
+                {/* Digits & Cadence Overlay */}
+                <div className="absolute inset-x-0 bottom-2 flex flex-col items-center pointer-events-none">
+                  <span className="font-rajdhani font-bold text-3xl text-white tracking-wider drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+                    {Math.floor(focusSeconds / 60)
+                      .toString()
+                      .padStart(2, '0')}
+                    :{(focusSeconds % 60).toString().padStart(2, '0')}
+                  </span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full mt-0.5 ${
+                    isFocusRunning
+                      ? 'text-cyan-300 bg-[#0c1322]/80 border border-cyan-500/40 animate-pulse'
+                      : 'text-purple-300 bg-[#0c1322]/80 border border-purple-500/30'
+                  }`}>
+                    {isFocusRunning ? breatheLabel : 'EN ESPERA'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="relative w-48 h-48 rounded-full border-2 border-purple-500/40 bg-[#0c1322] flex flex-col items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.25)] mb-4">
+                <span className="font-rajdhani font-bold text-5xl text-white tracking-widest">
+                  {Math.floor(focusSeconds / 60)
+                    .toString()
+                    .padStart(2, '0')}
+                  :{(focusSeconds % 60).toString().padStart(2, '0')}
+                </span>
+                <span className="text-[10px] font-mono text-purple-400 mt-1 uppercase tracking-wider">
+                  {isFocusRunning ? breatheLabel : 'EN ESPERA'}
+                </span>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* AMBIENT AUDIO ENGINE CONTROLS (Restored & Enhanced)            */}
+            {/* ============================================================== */}
+            <div className="w-full max-w-sm bg-[#0c1322]/90 border border-[#1c2a45] rounded-2xl p-3 mb-5 backdrop-blur-md text-left">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm text-cyan-400 animate-pulse">
+                    {isAmbientPlaying ? 'graphic_eq' : 'headphones'}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-slate-200">
+                    Audio Ambiental de Concentración
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => handleToggleFocusAmbient()}
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border transition-all flex items-center gap-1 ${
+                    isAmbientPlaying
+                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                      : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                  }`}
+                  title="Alternar reproducción de audio"
+                >
+                  <span className="material-symbols-outlined text-[11px]">
+                    {isAmbientPlaying ? 'volume_up' : 'volume_off'}
+                  </span>
+                  <span>{isAmbientPlaying ? 'Activo' : 'Pausado'}</span>
+                </button>
+              </div>
+
+              {/* Sound Mode Options */}
+              <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                {[
+                  { id: 'alpha', label: 'Alpha 432Hz', icon: 'psychology' },
+                  { id: 'rain', label: 'Lluvia Zen', icon: 'rainy' },
+                  { id: 'noise', label: 'Ruido Blanco', icon: 'air' },
+                  { id: 'off', label: 'Silencio', icon: 'volume_off' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      sound.playBeep(450, 0.03);
+                      handleToggleFocusAmbient(s.id as any);
+                    }}
+                    className={`p-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border text-center transition-all ${
+                      ambientSoundMode === s.id
+                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                        : 'bg-[#070b14] border-[#162238] text-slate-400 hover:text-white hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">{s.icon}</span>
+                    <span className="text-[9px] font-mono leading-tight">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Volume Slider */}
+              <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-slate-400">
+                <span className="material-symbols-outlined text-xs">volume_down</span>
+                <input
+                  type="range"
+                  min="0.02"
+                  max="0.30"
+                  step="0.01"
+                  value={ambientVolume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="flex-1 accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
+                  title="Ajustar volumen del audio ambiental"
+                />
+                <span className="w-8 text-right font-mono text-[10px] text-slate-300">
+                  {Math.round((ambientVolume / 0.30) * 100)}%
+                </span>
+              </div>
             </div>
 
-            {/* Play / Pause / Reset */}
+            {/* Play / Pause / Reset / Extended Controls */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  sound.playBeep(isFocusRunning ? 440 : 660, 0.05);
-                  setIsFocusRunning(!isFocusRunning);
-                }}
+                onClick={handleToggleFocusTimer}
                 className={`px-6 py-2.5 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 shadow-md flex items-center gap-1.5 ${
                   isFocusRunning
                     ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                    : 'bg-purple-600 hover:bg-purple-500 text-white'
+                    : 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(147,51,234,0.35)]'
                 }`}
               >
                 <span className="material-symbols-outlined text-sm">
@@ -1358,13 +1853,28 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               <button
                 onClick={() => {
                   setIsFocusRunning(false);
+                  sound.stopAmbientFocus();
+                  setIsAmbientPlaying(false);
                   setFocusSeconds(focusInitialSeconds);
                   sound.playBeep(320, 0.04);
                 }}
                 className="px-4 py-2.5 rounded-xl bg-[#0c1322] border border-[#1c2a45] hover:border-slate-500 text-slate-300 font-mono text-xs font-bold active:scale-95 flex items-center gap-1"
+                title="Reiniciar temporizador"
               >
                 <span className="material-symbols-outlined text-sm">replay</span>
                 <span>Reiniciar</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setFocusSeconds((prev) => prev + 300);
+                  sound.playBeep(520, 0.03);
+                  showToast('+5 minutos añadidos');
+                }}
+                className="px-3 py-2.5 rounded-xl bg-[#0c1322] border border-[#1c2a45] hover:border-slate-500 text-cyan-400 font-mono text-xs font-bold active:scale-95"
+                title="Añadir 5 minutos de extensión"
+              >
+                +5m
               </button>
             </div>
           </div>

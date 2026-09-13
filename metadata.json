@@ -1,6 +1,6 @@
 {
   "name": "System: Shadow Leveling",
-  "description": "A minimalist discipline and habit-tracking system with daily objectives, commitments, focus sessions, and performance analytics.",
+  "description": "Minimalist discipline, focus, and habit mastery system with 3D spatial orb interaction, real-time analytics, and biometric progression.",
   "requestFramePermissions": [
     "camera"
   ],
