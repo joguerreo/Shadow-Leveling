@@ -172,7 +172,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
             </p>
           </div>
 
-          {/* Intensity Selector: Ligera, Estándar, Monarca */}
+          {/* Intensity Selector: Ligera, Firme, Máxima */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-xs text-amber-400">tune</span>
@@ -200,7 +200,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
                     : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
                 }`}
               >
-                ⚔️ Cazador (1.5 km)
+                ⚔️ Firme (1.5 km)
               </button>
 
               <button
@@ -212,7 +212,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({
                     : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
                 }`}
               >
-                👑 Monarca (2.5 km)
+                👑 Máxima (2.5 km)
               </button>
             </div>
           </div>

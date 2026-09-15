@@ -1,15 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createCategoryIconSprite, PACT_CATEGORY_ICONS } from './CategoryIconSprite';
 
 interface PactOrb3DProps {
   streakDays: number;
   totalInfractions?: number;
+  category?: string;
   size?: number;
 }
 
 export const PactOrb3D: React.FC<PactOrb3DProps> = ({
   streakDays,
   totalInfractions = 0,
+  category = 'discipline',
   size = 72,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -55,7 +58,7 @@ export const PactOrb3D: React.FC<PactOrb3DProps> = ({
     const coreMesh = new THREE.Mesh(coreGeom, coreMat);
     orbGroup.add(coreMesh);
 
-    // 2. Willpower Containment Halo - Smooth Soft Sphere (no wireframe clutter)
+    // 2. Willpower Containment Halo - Smooth Soft Sphere
     const cageColor = isCompromised
       ? 0xf87171
       : streakDays > 3
@@ -81,6 +84,14 @@ export const PactOrb3D: React.FC<PactOrb3DProps> = ({
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.rotation.x = Math.PI / 3;
     orbGroup.add(ringMesh);
+
+    // 4. Category icon sprite inside pact orb
+    const iconName = PACT_CATEGORY_ICONS[category] || PACT_CATEGORY_ICONS.default;
+    const iconColor = isCompromised ? '#ef4444' : streakDays > 0 ? '#10b981' : '#f43f5e';
+    const iconSprite = createCategoryIconSprite(iconName, iconColor, 256);
+    iconSprite.scale.set(0.72, 0.72, 1);
+    iconSprite.position.set(0, 0, 0.1);
+    orbGroup.add(iconSprite);
 
     const clock = new THREE.Clock();
     let reqId = 0;
@@ -119,7 +130,7 @@ export const PactOrb3D: React.FC<PactOrb3DProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [streakDays, totalInfractions, size]);
+  }, [streakDays, totalInfractions, category, size]);
 
   return (
     <div

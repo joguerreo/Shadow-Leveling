@@ -52,6 +52,8 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
   const [selectedPactId, setSelectedPactId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'completed'>('all');
+  const [questCategoryFilter, setQuestCategoryFilter] = useState<string>('all');
+  const [pactCategoryFilter, setPactCategoryFilter] = useState<string>('all');
   const [sysMessage, setSysMessage] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -105,6 +107,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   const [focusVisualMode, setFocusVisualMode] = useState<'3d' | 'classic'>('3d');
   const [statsVisualMode, setStatsVisualMode] = useState<'3d' | '2d'>('3d');
   const [hubCoreMode, setHubCoreMode] = useState<'3d' | '2d'>('3d');
+  const [isCoreExpanded, setIsCoreExpanded] = useState<boolean>(false);
   const [questVisualMode, setQuestVisualMode] = useState<'spatial' | 'grid' | 'classic'>('spatial');
   const [pactVisualMode, setPactVisualMode] = useState<'spatial' | 'grid' | 'classic'>('spatial');
 
@@ -126,10 +129,19 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   const activePacts = player.forbiddenPacts || [];
 
   const filteredQuests = quests.filter((q) => {
-    if (filterMode === 'pending') return !q.completed;
-    if (filterMode === 'completed') return q.completed;
+    if (filterMode === 'pending' && q.completed) return false;
+    if (filterMode === 'completed' && !q.completed) return false;
+    if (questCategoryFilter !== 'all' && q.category !== questCategoryFilter) return false;
     return true;
   });
+
+  const filteredPacts = activePacts.filter((p) => {
+    if (pactCategoryFilter !== 'all' && p.category !== pactCategoryFilter) return false;
+    return true;
+  });
+
+  const questCategories = Array.from(new Set(quests.map((q) => q.category)));
+  const pactCategories = Array.from(new Set(activePacts.map((p) => p.category)));
 
   const activeQuest = quests.find((q) => q.id === selectedQuestId) || null;
   const activePactDetail = activePacts.find((p) => p.id === selectedPactId) || null;
@@ -323,7 +335,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       case 'mindfulness':
         return 'Hábito';
       default:
-        return 'Misión';
+        return 'Objetivo';
     }
   };
 
@@ -404,7 +416,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     setTimeout(() => setIsShaking(false), 400);
 
     sound.playBeep(880, 0.12);
-    sound.speakMotivation(`Misión «${activeQuest.title}» completada.`);
+    sound.speakMotivation(`Objetivo «${activeQuest.title}» completado.`);
 
     onCompleteQuest(activeQuest.id);
 
@@ -695,7 +707,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     <div
       ref={containerRef}
       id="portal-hub-root"
-      className={`fixed inset-0 z-20 w-screen h-screen overflow-hidden bg-[#03040a] text-[#e7edf7] font-sans select-none flex flex-col justify-between ${
+      className={`fixed inset-0 z-20 w-full h-full max-w-full overflow-hidden bg-[#03040a] text-[#e7edf7] font-sans select-none flex flex-col justify-between ${
         isShaking ? 'animate-shake' : ''
       }`}
     >
@@ -783,224 +795,318 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       </header>
 
       {/* 4. Central Stage */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-start overflow-y-auto px-4 py-2 w-full max-w-4xl mx-auto scrollbar-none">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-start overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y px-2.5 sm:px-4 py-1.5 sm:py-2 w-full max-w-4xl mx-auto scrollbar-none">
         {/* ==================================================================== */}
         {/* SCENE 1: MAIN HUB WITH MISSIONS IN GRID & BRIEF DESCRIPTIONS         */}
         {/* ==================================================================== */}
         {activeScene === 'hub' && (
-          <div className="w-full flex flex-col items-center text-center animate-fade-in pb-28">
-            {/* System Status Line */}
-            <div className="font-rajdhani font-semibold text-xs sm:text-sm tracking-wider text-[#38bdf8] min-h-[22px] mb-3 opacity-90 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
-              <span className="text-slate-500 mr-1">&gt;</span>
-              {sysMessage}
-            </div>
-
-            {/* Central Level Core (Breathing XP Ring / 3D Biometric Reactor) */}
-            <div className="flex flex-col items-center">
-              {hubCoreMode === '3d' ? (
-                <div
-                  className="relative w-[130px] h-[130px] sm:w-[150px] sm:h-[150px] mb-2 cursor-pointer group shrink-0 flex items-center justify-center"
-                  onClick={() => {
-                    sound.playBeep(640, 0.05);
-                    sound.speakMotivation(`Reactor biométrico activo. Nivel ${player.level}. Energía al ${Math.round(((player.hp ?? 100) / (player.maxHp ?? 100)) * 100)}%.`);
-                  }}
-                  title="Reactor Biométrico 3D (Toca para inspeccionar)"
-                >
-                  <BiometricCoreOrb3D
-                    level={player.level}
-                    hpPercent={((player.hp ?? 100) / (player.maxHp ?? 100)) * 100}
-                    streakDays={player.streakDays ?? 0}
-                  />
-                  <div className="absolute -bottom-1 flex items-center gap-1 bg-[#0c1322]/90 border border-cyan-500/40 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 font-bold backdrop-blur-md shadow-md pointer-events-none">
+          <div className="w-full flex flex-col items-center text-center animate-fade-in pb-20 sm:pb-24">
+            {/* System Status & Biometric Ribbon */}
+            <div className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-2xl bg-[#0c1322]/85 border border-[#1c2a45] mb-2.5 backdrop-blur-md shadow-lg">
+              {/* Left: Mini Level Indicator & Reactor Progress */}
+              <div 
+                className="flex items-center gap-2 cursor-pointer group shrink-0"
+                onClick={() => {
+                  sound.playBeep(520, 0.03);
+                  setIsCoreExpanded(!isCoreExpanded);
+                }}
+                title="Toca para expandir o contraer el reactor biométrico"
+              >
+                <div className="w-8 h-8 rounded-full border border-cyan-500/50 bg-cyan-950/40 flex items-center justify-center text-cyan-300 font-rajdhani font-bold text-sm shadow-[0_0_10px_rgba(56,189,248,0.3)] group-hover:border-cyan-400">
+                  {player.level}
+                </div>
+                <div className="text-left">
+                  <div className="text-[10px] font-mono text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <span>NV {player.level}</span>
+                    <span className="text-cyan-400 font-mono">({Math.round(xpRatio * 100)}%)</span>
                   </div>
-                </div>
-              ) : (
-                <div
-                  className="relative w-[130px] h-[130px] sm:w-[150px] sm:h-[150px] mb-2 animate-breathe cursor-pointer group shrink-0"
-                  onClick={() => {
-                    sound.playBeep(640, 0.05);
-                    sound.speakMotivation(`Nivel ${player.level}. ${Math.round(xpRatio * 100)}% de progreso.`);
-                  }}
-                  title="Toca para verificar progreso"
-                >
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
-                    <circle cx="100" cy="100" r="88" fill="none" stroke="#0c1322" strokeWidth="8" />
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="88"
-                      fill="none"
-                      stroke={isLevelFlashing ? '#ffcf6b' : '#38bdf8'}
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={RING_CIRCUMFERENCE}
-                      strokeDashoffset={ringDashoffset}
-                      className={`transition-all duration-700 ease-out ${
-                        isLevelFlashing ? 'drop-shadow-[0_0_16px_#ff9d2e]' : 'drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]'
-                      }`}
-                    />
-                  </svg>
-
-                  {/* Core Level */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="w-20 sm:w-28 h-1.5 bg-[#060a12] rounded-full overflow-hidden border border-white/10 mt-0.5">
                     <div
-                      className={`font-rajdhani font-bold text-[42px] sm:text-[48px] text-[#e7edf7] leading-none transition-transform duration-300 ${
-                        isLevelBumping ? 'scale-125 text-[#ffcf6b]' : 'scale-100'
-                      }`}
-                    >
-                      {player.level}
-                    </div>
-                    <div className="text-[10px] tracking-[0.2em] font-mono text-[#7c8aa8] mt-0.5 font-semibold">NIVEL</div>
+                      className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round(xpRatio * 100)}%` }}
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Core View Toggle */}
-              <div className="flex items-center gap-1 mb-2">
+              {/* Center: System message typewriter */}
+              <div className="hidden xs:flex sm:flex items-center text-xs font-rajdhani text-cyan-300/90 truncate flex-1 px-2 font-medium">
+                <span className="text-slate-500 mr-1">&gt;</span>
+                <span className="truncate">{sysMessage}</span>
+              </div>
+
+              {/* Right: Expand / Collapse Button & 3D/2D toggle */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isCoreExpanded && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playBeep(520, 0.03);
+                      setHubCoreMode(hubCoreMode === '3d' ? '2d' : '3d');
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-[#060a12] border border-[#1c2a45] text-[10px] font-mono text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+                    title="Alternar entre reactor 3D y anillo 2D"
+                  >
+                    <span className="material-symbols-outlined text-xs">
+                      {hubCoreMode === '3d' ? 'view_in_ar' : 'circle'}
+                    </span>
+                    <span>{hubCoreMode === '3d' ? '3D' : '2D'}</span>
+                  </button>
+                )}
+
                 <button
+                  type="button"
                   onClick={() => {
                     sound.playBeep(520, 0.03);
-                    setHubCoreMode(hubCoreMode === '3d' ? '2d' : '3d');
+                    setIsCoreExpanded(!isCoreExpanded);
                   }}
-                  className="px-2 py-0.5 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] text-[10px] font-mono text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
-                  title="Alternar entre reactor 3D y anillo 2D"
+                  className={`px-2 py-1 rounded-lg border text-[10px] font-mono transition-all flex items-center gap-1 active:scale-95 ${
+                    isCoreExpanded
+                      ? 'bg-cyan-950/60 border-cyan-500/50 text-cyan-300'
+                      : 'bg-[#060a12] border-[#1c2a45] text-slate-300 hover:text-white hover:border-cyan-500/40'
+                  }`}
+                  title={isCoreExpanded ? 'Contraer reactor para optimizar espacio' : 'Expandir reactor biométrico'}
                 >
                   <span className="material-symbols-outlined text-xs">
-                    {hubCoreMode === '3d' ? 'view_in_ar' : 'circle'}
+                    {isCoreExpanded ? 'expand_less' : 'view_in_ar'}
                   </span>
-                  <span>{hubCoreMode === '3d' ? 'Reactor 3D' : 'Anillo 2D'}</span>
+                  <span>{isCoreExpanded ? 'Cerrar' : 'Reactor'}</span>
                 </button>
               </div>
             </div>
 
-            {/* XP Subtext */}
-            <div className="text-xs font-mono text-[#7c8aa8] mb-5">
-              XP: <span className="text-cyan-300 font-bold">{player.xp}</span> / {player.maxXp} ({Math.round(xpRatio * 100)}%)
-            </div>
+            {/* Optional Expanded Central Level Core */}
+            {isCoreExpanded && (
+              <div className="flex flex-col items-center mb-3 animate-fade-in">
+                {hubCoreMode === '3d' ? (
+                  <div
+                    className="relative w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] mb-1 cursor-pointer group shrink-0 flex items-center justify-center touch-none"
+                    style={{ touchAction: 'none' }}
+                    onClick={() => {
+                      sound.playBeep(640, 0.05);
+                      sound.speakMotivation(`Reactor biométrico activo. Nivel ${player.level}. Energía al ${Math.round(((player.hp ?? 100) / (player.maxHp ?? 100)) * 100)}%.`);
+                    }}
+                    title="Reactor Biométrico 3D (Toca para inspeccionar)"
+                  >
+                    <BiometricCoreOrb3D
+                      level={player.level}
+                      hpPercent={((player.hp ?? 100) / (player.maxHp ?? 100)) * 100}
+                      streakDays={player.streakDays ?? 0}
+                    />
+                    <div className="absolute -bottom-1 flex items-center gap-1 bg-[#0c1322]/90 border border-cyan-500/40 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 font-bold backdrop-blur-md shadow-md pointer-events-none">
+                      <span>NV {player.level}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="relative w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] mb-1 animate-breathe cursor-pointer group shrink-0"
+                    onClick={() => {
+                      sound.playBeep(640, 0.05);
+                      sound.speakMotivation(`Nivel ${player.level}. ${Math.round(xpRatio * 100)}% de progreso.`);
+                    }}
+                    title="Toca para verificar progreso"
+                  >
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
+                      <circle cx="100" cy="100" r="88" fill="none" stroke="#0c1322" strokeWidth="8" />
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r="88"
+                        fill="none"
+                        stroke={isLevelFlashing ? '#ffcf6b' : '#38bdf8'}
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={RING_CIRCUMFERENCE}
+                        strokeDashoffset={ringDashoffset}
+                        className={`transition-all duration-700 ease-out ${
+                          isLevelFlashing ? 'drop-shadow-[0_0_16px_#ff9d2e]' : 'drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]'
+                        }`}
+                      />
+                    </svg>
+
+                    {/* Core Level */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div
+                        className={`font-rajdhani font-bold text-[38px] sm:text-[44px] text-[#e7edf7] leading-none transition-transform duration-300 ${
+                          isLevelBumping ? 'scale-125 text-[#ffcf6b]' : 'scale-100'
+                        }`}
+                      >
+                        {player.level}
+                      </div>
+                      <div className="text-[9px] tracking-[0.2em] font-mono text-[#7c8aa8] mt-0.5 font-semibold">NIVEL</div>
+                    </div>
+                  </div>
+                )}
+                <div className="text-[11px] font-mono text-[#7c8aa8]">
+                  XP: <span className="text-cyan-300 font-bold">{player.xp}</span> / {player.maxXp}
+                </div>
+              </div>
+            )}
 
             {/* ============================================================== */}
-            {/* OBJETIVOS DIARIOS (CUADRÍCULA MINIMALISTA DE TÍTULOS Y DETALLES)*/}
+            {/* OBJETIVOS DIARIOS (CONTROL BAR COMPACTA Y SIN SCROLLING)       */}
             {/* ============================================================== */}
             <div className="w-full text-left">
-              {/* Header & Controls */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-cyan-400 text-lg">task_alt</span>
-                  <h3 className="font-sans font-bold text-lg sm:text-xl text-[#e7edf7] tracking-tight">
+              {/* Header & Controls: Row 1 has Title on Left and "+ Nuevo" always visible on Right */}
+              <div className="flex items-center justify-between gap-2 mb-2 px-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="material-symbols-outlined text-cyan-400 text-lg sm:text-xl shrink-0">task_alt</span>
+                  <h3 className="font-sans font-bold text-base sm:text-lg text-[#e7edf7] tracking-tight truncate">
                     Objetivos Diarios
                   </h3>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs font-mono text-cyan-400/80 shrink-0 font-bold">
                     ({completedQuests.length}/{quests.length})
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* View Mode Toggle: Espacial 3D vs Cuadrícula vs Clásico */}
-                  <div className="flex items-center gap-1 bg-[#0c1322] border border-[#1c2a45] rounded-lg p-0.5">
-                    <button
-                      onClick={() => {
-                        sound.playBeep(520, 0.03);
-                        setQuestVisualMode('spatial');
-                      }}
-                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                        questVisualMode === 'spatial'
-                          ? 'bg-cyan-600/80 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                      title="Navegación espacial de orbes 3D con desplazamiento táctil"
-                    >
-                      <span className="material-symbols-outlined text-xs">cyclone</span>
-                      <span>Espacial 3D</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        sound.playBeep(490, 0.03);
-                        setQuestVisualMode('grid');
-                      }}
-                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                        questVisualMode === 'grid'
-                          ? 'bg-cyan-600/80 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                      title="Cuadrícula de orbes 3D"
-                    >
-                      <span className="material-symbols-outlined text-xs">grid_view</span>
-                      <span className="hidden sm:inline">Cuadrícula</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        sound.playBeep(460, 0.03);
-                        setQuestVisualMode('classic');
-                      }}
-                      className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                        questVisualMode === 'classic'
-                          ? 'bg-cyan-600/80 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                      title="Círculos clásicos 2D"
-                    >
-                      <span className="material-symbols-outlined text-xs">adjust</span>
-                      <span className="hidden sm:inline">Clásico</span>
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => setIsCreateQuestOpen(true)}
-                    className="px-2.5 py-1 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-mono font-bold transition-all active:scale-95 shadow-md flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-xs">add</span>
-                    <span>Nuevo</span>
-                  </button>
-
+                <div className="flex items-center gap-1.5 shrink-0">
                   {onAddBalancedRoutine && quests.length === 0 && (
                     <button
+                      type="button"
                       onClick={onAddBalancedRoutine}
-                      className="px-2.5 py-1 rounded-lg bg-[#0c1322] border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-mono font-bold transition-all active:scale-95"
+                      className="px-2.5 py-1.5 rounded-xl bg-[#0c1322] border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-mono font-bold transition-all active:scale-95"
                     >
                       Rutina
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateQuestOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-mono font-bold transition-all active:scale-95 shadow-lg shadow-cyan-600/30 flex items-center gap-1"
+                    title="Crear un nuevo objetivo diario"
+                  >
+                    <span className="material-symbols-outlined text-sm font-bold">add</span>
+                    <span>Nuevo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Visual Mode Toggle (Espacial / Cuadrícula / Clásico) & Status Filters */}
+              <div className="flex items-center justify-between gap-2 mb-2 px-1 flex-wrap">
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-0.5 bg-[#0c1322] border border-[#1c2a45] rounded-xl p-0.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playBeep(520, 0.03);
+                      setQuestVisualMode('spatial');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      questVisualMode === 'spatial'
+                        ? 'bg-cyan-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Navegación espacial 3D táctil"
+                  >
+                    <span className="material-symbols-outlined text-xs">cyclone</span>
+                    <span>Espacial 3D</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playBeep(490, 0.03);
+                      setQuestVisualMode('grid');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      questVisualMode === 'grid'
+                        ? 'bg-cyan-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Cuadrícula de orbes"
+                  >
+                    <span className="material-symbols-outlined text-xs">grid_view</span>
+                    <span className="hidden xs:inline sm:inline">Orbes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playBeep(460, 0.03);
+                      setQuestVisualMode('classic');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      questVisualMode === 'classic'
+                        ? 'bg-cyan-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Lista clásica 2D"
+                  >
+                    <span className="material-symbols-outlined text-xs">adjust</span>
+                    <span className="hidden xs:inline sm:inline">Clásico</span>
+                  </button>
                 </div>
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-2 mb-3.5 px-1 text-xs font-mono">
-                <button
-                  onClick={() => setFilterMode('all')}
-                  className={`px-3 py-1 rounded-full transition-all ${
-                    filterMode === 'all'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Todos ({quests.length})
-                </button>
-                <button
-                  onClick={() => setFilterMode('pending')}
-                  className={`px-3 py-1 rounded-full transition-all ${
-                    filterMode === 'pending'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Pendientes ({pendingQuests.length})
-                </button>
-                <button
-                  onClick={() => setFilterMode('completed')}
-                  className={`px-3 py-1 rounded-full transition-all ${
-                    filterMode === 'completed'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Completados ({completedQuests.length})
-                </button>
+              <div className="flex flex-col gap-2 mb-4 px-1 text-xs font-mono">
+                {/* Status Filter */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    onClick={() => setFilterMode('all')}
+                    className={`px-3 py-1 rounded-full transition-all shrink-0 ${
+                      filterMode === 'all'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-white bg-[#0c1322]/60 border border-transparent'
+                    }`}
+                  >
+                    Todos ({quests.length})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('pending')}
+                    className={`px-3 py-1 rounded-full transition-all shrink-0 ${
+                      filterMode === 'pending'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-white bg-[#0c1322]/60 border border-transparent'
+                    }`}
+                  >
+                    Pendientes ({pendingQuests.length})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('completed')}
+                    className={`px-3 py-1 rounded-full transition-all shrink-0 ${
+                      filterMode === 'completed'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-white bg-[#0c1322]/60 border border-transparent'
+                    }`}
+                  >
+                    Completados ({completedQuests.length})
+                  </button>
+                </div>
+
+                {/* Category Filter Pills */}
+                {questCategories.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
+                    <span className="text-slate-500 text-[10px] shrink-0 uppercase tracking-wider mr-1">Cat:</span>
+                    <button
+                      onClick={() => setQuestCategoryFilter('all')}
+                      className={`px-2.5 py-0.5 rounded-full transition-all shrink-0 ${
+                        questCategoryFilter === 'all'
+                          ? 'bg-slate-700 text-white font-bold border border-slate-500'
+                          : 'text-slate-400 hover:text-white bg-[#0c1322]/70 border border-[#1c2a45]'
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {questCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setQuestCategoryFilter(cat)}
+                        className={`px-2.5 py-0.5 rounded-full transition-all shrink-0 capitalize ${
+                          questCategoryFilter === cat
+                            ? 'bg-cyan-500/30 text-cyan-200 font-bold border border-cyan-400'
+                            : 'text-slate-400 hover:text-slate-200 bg-[#0c1322]/70 border border-[#1c2a45]'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* 3D Spatial Carousel OR Grid of Circular Orbes */}
               {questVisualMode === 'spatial' ? (
-                <div className="w-full">
+                <div className="w-full touch-none" style={{ touchAction: 'none' }}>
                   <QuestSpatialCarousel3D
                     quests={filteredQuests}
                     onSelectQuest={(q) => handleOpenQuestDetail(q)}
@@ -1399,102 +1505,150 @@ export const PortalHub: React.FC<PortalHubProps> = ({
         {/* SCENE 4: COMPROMISOS (GRID MINIMALISTA CON DESCRIPCIÓN AL ENTRAR)    */}
         {/* ==================================================================== */}
         {activeScene === 'pacts' && (
-          <div className="w-full max-w-4xl flex flex-col py-4 text-left animate-fade-in pb-28">
-            <button
-              onClick={() => triggerWipeTransition('hub')}
-              className="self-start text-xs sm:text-sm text-[#7c8aa8] hover:text-white flex items-center gap-1 font-mono transition-colors mb-3"
-            >
-              <span className="material-symbols-outlined text-sm">arrow_back</span> Volver a Objetivos
-            </button>
-
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-rose-400 text-2xl">verified_user</span>
-                <div>
-                  <h3 className="font-sans font-bold text-2xl text-[#e7edf7] tracking-tight">
-                    Compromisos
-                  </h3>
-                  <p className="text-xs font-mono text-[#7c8aa8]">Líneas rojas y reglas innegociables de conducta</p>
+          <div className="w-full max-w-4xl flex flex-col py-2 text-left animate-fade-in pb-20 sm:pb-24">
+            {/* Header & Controls: Row 1 - Back button + Title on left, Action buttons on right */}
+            <div className="flex items-center justify-between gap-2 mb-2 px-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => triggerWipeTransition('hub')}
+                  className="w-8 h-8 rounded-xl bg-[#0c1322] border border-[#1c2a45] text-slate-400 hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm"
+                  title="Volver a Objetivos"
+                >
+                  <span className="material-symbols-outlined text-base">arrow_back</span>
+                </button>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-rose-400 text-lg sm:text-xl shrink-0">verified_user</span>
+                    <h3 className="font-sans font-bold text-base sm:text-lg text-[#e7edf7] tracking-tight truncate">
+                      Compromisos
+                    </h3>
+                    <span className="text-xs font-mono text-rose-400/80 font-bold shrink-0">
+                      ({activePacts.length})
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* View Mode Toggle: Espacial 3D vs Cuadrícula vs Clásico */}
-                <div className="flex items-center gap-1 bg-[#0c1322] border border-[#1c2a45] rounded-lg p-0.5">
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onOpenTruceModal && (
                   <button
-                    onClick={() => {
-                      sound.playBeep(520, 0.03);
-                      setPactVisualMode('spatial');
-                    }}
-                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      pactVisualMode === 'spatial'
-                        ? 'bg-rose-600/80 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Navegación espacial 3D con desplazamiento táctil"
+                    type="button"
+                    onClick={onOpenTruceModal}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-950/70 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold hover:bg-amber-900 active:scale-95 shadow-md flex items-center gap-1"
+                    title="Pedir Tregua Temporal"
                   >
-                    <span className="material-symbols-outlined text-xs">cyclone</span>
-                    <span>Espacial 3D</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      sound.playBeep(490, 0.03);
-                      setPactVisualMode('grid');
-                    }}
-                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      pactVisualMode === 'grid'
-                        ? 'bg-rose-600/80 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Cuadrícula de orbes 3D"
-                  >
-                    <span className="material-symbols-outlined text-xs">grid_view</span>
-                    <span className="hidden sm:inline">Cuadrícula</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      sound.playBeep(460, 0.03);
-                      setPactVisualMode('classic');
-                    }}
-                    className={`px-2 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      pactVisualMode === 'classic'
-                        ? 'bg-rose-600/80 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Círculos clásicos 2D"
-                  >
-                    <span className="material-symbols-outlined text-xs">adjust</span>
-                    <span className="hidden sm:inline">Clásico</span>
-                  </button>
-                </div>
-
-                {onAddCustomPact && (
-                  <button
-                    onClick={() => setIsCreatePactOpen(true)}
-                    className="px-2.5 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-mono font-bold transition-all active:scale-95 shadow-md flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-xs">add</span>
-                    <span>Nuevo</span>
+                    <span className="material-symbols-outlined text-xs">shield</span>
+                    <span className="hidden xs:inline">Tregua</span>
                   </button>
                 )}
 
-                {onOpenTruceModal && (
+                {onAddCustomPact && (
                   <button
-                    onClick={onOpenTruceModal}
-                    className="px-3 py-1.5 rounded-lg bg-amber-950/70 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold hover:bg-amber-900 active:scale-95 shadow-md flex items-center gap-1"
+                    type="button"
+                    onClick={() => setIsCreatePactOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-mono font-bold transition-all active:scale-95 shadow-lg shadow-rose-600/30 flex items-center gap-1"
+                    title="Crear un nuevo compromiso innegociable"
                   >
-                    <span className="material-symbols-outlined text-xs">shield</span>
-                    <span>Tregua</span>
+                    <span className="material-symbols-outlined text-sm font-bold">add</span>
+                    <span>Nuevo</span>
                   </button>
                 )}
               </div>
             </div>
 
+            {/* Row 2: View Mode Toggle & Category Filter Pills */}
+            <div className="flex items-center justify-between gap-2 mb-2 px-1 flex-wrap">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-0.5 bg-[#0c1322] border border-[#1c2a45] rounded-xl p-0.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBeep(520, 0.03);
+                    setPactVisualMode('spatial');
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                    pactVisualMode === 'spatial'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Navegación espacial 3D táctil"
+                >
+                  <span className="material-symbols-outlined text-xs">cyclone</span>
+                  <span>Espacial 3D</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBeep(490, 0.03);
+                    setPactVisualMode('grid');
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                    pactVisualMode === 'grid'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Cuadrícula de orbes 3D"
+                >
+                  <span className="material-symbols-outlined text-xs">grid_view</span>
+                  <span className="hidden xs:inline sm:inline">Orbes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playBeep(460, 0.03);
+                    setPactVisualMode('classic');
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                    pactVisualMode === 'classic'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Círculos clásicos 2D"
+                >
+                  <span className="material-symbols-outlined text-xs">adjust</span>
+                  <span className="hidden xs:inline sm:inline">Clásico</span>
+                </button>
+              </div>
+
+              {/* Category Filter Pills for Pacts */}
+              {pactCategories.length > 1 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none text-[11px] font-mono">
+                  <span className="text-slate-500 text-[10px] shrink-0 uppercase tracking-wider mr-0.5">Cat:</span>
+                  <button
+                    type="button"
+                    onClick={() => setPactCategoryFilter('all')}
+                    className={`px-2.5 py-0.5 rounded-full transition-all shrink-0 ${
+                      pactCategoryFilter === 'all'
+                        ? 'bg-rose-950 text-rose-200 font-bold border border-rose-500/60'
+                        : 'text-slate-400 hover:text-white bg-[#0c1322]/70 border border-[#1c2a45]'
+                    }`}
+                  >
+                    Todos ({activePacts.length})
+                  </button>
+                  {pactCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setPactCategoryFilter(cat)}
+                      className={`px-2.5 py-0.5 rounded-full transition-all shrink-0 capitalize ${
+                        pactCategoryFilter === cat
+                          ? 'bg-rose-600/30 text-rose-200 font-bold border border-rose-400'
+                          : 'text-slate-400 hover:text-rose-200 bg-[#0c1322]/70 border border-[#1c2a45]'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Spatial 3D Carousel OR Circular Orbs Grid */}
             {pactVisualMode === 'spatial' ? (
-              <div className="w-full">
+              <div className="w-full touch-none" style={{ touchAction: 'none' }}>
                 <PactSpatialCarousel3D
-                  pacts={activePacts}
+                  pacts={filteredPacts}
                   onSelectPact={(pact) => setSelectedPactId(selectedPactId === pact.id ? null : pact.id)}
                   onRegisterInfraction={(pact) => handlePactInfractionWithVoice(pact)}
                 />
@@ -1542,12 +1696,12 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 w-full">
-                {activePacts.length === 0 ? (
+                {filteredPacts.length === 0 ? (
                   <div className="col-span-full text-xs text-slate-500 font-mono py-10 text-center bg-[#0c1322]/80 rounded-2xl border border-[#1c2a45]">
-                    No hay compromisos registrados en el Sistema. Pulsa "+ Nuevo" para agregar uno.
+                    No hay compromisos en este filtro. Pulsa "+ Nuevo" para agregar uno.
                   </div>
                 ) : (
-                  activePacts.map((pact) => {
+                  filteredPacts.map((pact) => {
                     const iconName = getPactMaterialIcon(pact);
                     const isExpanded = selectedPactId === pact.id;
 
@@ -1568,6 +1722,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                               <PactOrb3D
                                 streakDays={pact.cleanStreakDays}
                                 totalInfractions={pact.totalInfractions}
+                                category={pact.category}
                                 size={64}
                               />
                               {/* Overlay Icon in the center */}
@@ -1916,7 +2071,12 @@ export const PortalHub: React.FC<PortalHubProps> = ({
           return (
             <button
               key={item.id}
-              onClick={(e) => triggerWipeTransition(item.scene, e)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerWipeTransition(item.scene, e);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
               className={`absolute z-40 flex flex-col items-center justify-center transition-all duration-300 ease-out ${
                 isRadialMenuOpen
                   ? 'opacity-100 scale-100 pointer-events-auto'
@@ -1950,10 +2110,13 @@ export const PortalHub: React.FC<PortalHubProps> = ({
 
         {/* Central Core Star Toggle Button */}
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
             sound.playBeep(isRadialMenuOpen ? 350 : 540, 0.04);
             setIsRadialMenuOpen(!isRadialMenuOpen);
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           className={`relative z-40 w-14 h-14 rounded-full border-2 flex items-center justify-center transition-all duration-300 shadow-2xl active:scale-95 ${
             isRadialMenuOpen
               ? 'border-cyan-400 bg-cyan-950 text-cyan-300 shadow-[0_0_24px_rgba(56,189,248,0.7)] rotate-45'

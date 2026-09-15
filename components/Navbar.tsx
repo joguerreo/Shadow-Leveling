@@ -233,7 +233,7 @@ const Navbar: React.FC<NavbarProps> = ({
             onOpenProfileModal?.();
           }}
           className="hidden md:flex items-center gap-2 pl-2 border-l border-white/10 cursor-pointer group select-none"
-          title="Abrir Perfil del Cazador"
+          title="Abrir Perfil de Disciplina"
         >
           <div className="flex flex-col items-end">
             <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider group-hover:text-cyan-300 transition-colors">

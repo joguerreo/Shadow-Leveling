@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { ForbiddenPact } from '../../types';
+import { createCategoryIconSprite, PACT_CATEGORY_ICONS } from './CategoryIconSprite';
 
 interface PactSpatialCarousel3DProps {
   pacts: ForbiddenPact[];
@@ -16,6 +17,7 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
   const mountRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
+  const setTargetAngleFnRef = useRef<((idx: number) => void) | null>(null);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
@@ -35,18 +37,22 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.userSelect = 'none';
+    renderer.domElement.style.webkitUserSelect = 'none';
+    container.style.touchAction = 'none';
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
     // Ambient and directional lighting for smooth shading
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
     dirLight.position.set(3, 4, 4);
     scene.add(dirLight);
 
-    const pointLight = new THREE.PointLight(0xf43f5e, 1.4, 10);
+    const pointLight = new THREE.PointLight(0xf43f5e, 1.5, 10);
     pointLight.position.set(0, 0, 3);
     scene.add(pointLight);
 
@@ -58,11 +64,13 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
       core: THREE.Mesh;
       cage: THREE.Mesh;
       ring: THREE.Mesh;
+      iconSprite?: THREE.Sprite;
       index: number;
     }[] = [];
 
     const total = pacts.length;
     const radius = Math.max(3.2, total * 0.55);
+    const anglePerItem = (Math.PI * 2) / Math.max(total, 1);
 
     pacts.forEach((p, idx) => {
       const orbGroup = new THREE.Group();
@@ -109,28 +117,52 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
       ringMesh.rotation.x = Math.PI / 3;
       orbGroup.add(ringMesh);
 
+      // 4. Category Icon Inside Pact Orb
+      const iconName = PACT_CATEGORY_ICONS[p.category] || PACT_CATEGORY_ICONS.default;
+      const iconColor = isCompromised ? '#ef4444' : hasStreak ? '#10b981' : '#f43f5e';
+      const sprite = createCategoryIconSprite(iconName, iconColor, 256);
+      sprite.scale.set(0.68, 0.68, 1);
+      sprite.position.set(0, 0, 0.1);
+      orbGroup.add(sprite);
+
       carouselGroup.add(orbGroup);
       orbMeshes.push({
         group: orbGroup,
         core: coreMesh,
         cage: cageMesh,
         ring: ringMesh,
+        iconSprite: sprite,
         index: idx,
       });
     });
 
-    const anglePerItem = (Math.PI * 2) / Math.max(total, 1);
     let isDragging = false;
     let startX = 0;
+    let dragDistance = 0;
     let currentAngle = 0;
     let targetAngle = 0;
+
+    const snapToIndex = (idx: number) => {
+      let normalized = ((idx % total) + total) % total;
+      setActiveIndex(normalized);
+      targetAngle = -normalized * anglePerItem;
+    };
+
+    setTargetAngleFnRef.current = snapToIndex;
+    snapToIndex(activeIndexRef.current);
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
     const handlePointerDown = (e: PointerEvent) => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch (_) {}
       isDragging = true;
       startX = e.clientX;
+      dragDistance = 0;
     };
 
     const handlePointerMove = (e: PointerEvent) => {
@@ -151,20 +183,33 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
       }
 
       if (!isDragging) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
       const deltaX = e.clientX - startX;
       startX = e.clientX;
+      dragDistance += Math.abs(deltaX);
       targetAngle += (deltaX / width) * 2.8;
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      try {
+        container.releasePointerCapture(e.pointerId);
+      } catch (_) {}
       if (!isDragging) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
       isDragging = false;
 
-      let closestIdx = Math.round(-targetAngle / anglePerItem);
-      closestIdx = ((closestIdx % total) + total) % total;
-      setActiveIndex(closestIdx);
-      targetAngle = -closestIdx * anglePerItem;
+      // If user swiped more than 8 pixels, snap to closest
+      if (dragDistance > 8) {
+        let closestIdx = Math.round(-targetAngle / anglePerItem);
+        closestIdx = ((closestIdx % total) + total) % total;
+        setActiveIndex(closestIdx);
+        targetAngle = -closestIdx * anglePerItem;
+        return;
+      }
 
+      // Check click without drag
       const rect = container.getBoundingClientRect();
       const clickX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const clickY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -181,15 +226,27 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
           if (found.index === activeIndexRef.current) {
             onSelectPact(pacts[found.index]);
           } else {
-            setActiveIndex(found.index);
+            snapToIndex(found.index);
           }
         }
+      } else {
+        let closestIdx = Math.round(-targetAngle / anglePerItem);
+        closestIdx = ((closestIdx % total) + total) % total;
+        targetAngle = -closestIdx * anglePerItem;
       }
     };
 
-    container.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    const handleTouchPrevent = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp, { passive: false });
+    container.addEventListener('touchstart', handleTouchPrevent, { passive: false });
+    container.addEventListener('touchmove', handleTouchPrevent, { passive: false });
 
     const handleResize = () => {
       if (!container) return;
@@ -244,6 +301,8 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
       container.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      container.removeEventListener('touchstart', handleTouchPrevent);
+      container.removeEventListener('touchmove', handleTouchPrevent);
       resizeObserver.disconnect();
       renderer.dispose();
       orbMeshes.forEach((m) => {
@@ -254,13 +313,43 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      setTargetAngleFnRef.current = null;
     };
   }, [pacts, onSelectPact]);
+
+  const goToNext = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const next = (activeIndex + 1) % pacts.length;
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(next);
+    } else {
+      setActiveIndex(next);
+    }
+  };
+
+  const goToPrev = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prev = (activeIndex - 1 + pacts.length) % pacts.length;
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(prev);
+    } else {
+      setActiveIndex(prev);
+    }
+  };
+
+  const goToIndex = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(idx);
+    } else {
+      setActiveIndex(idx);
+    }
+  };
 
   if (pacts.length === 0) {
     return (
       <div className="py-12 text-center text-xs font-mono text-slate-500 bg-[#0c1322]/60 rounded-2xl border border-[#1c2a45]">
-        No hay compromisos registrados en el Sistema.
+        No tienes compromisos activos registrados.
       </div>
     );
   }
@@ -269,7 +358,7 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
 
   return (
     <div className="w-full flex flex-col items-center select-none">
-      <div className="relative w-full h-72 sm:h-80 bg-[#0c0d18]/90 border border-rose-500/20 rounded-3xl overflow-hidden shadow-2xl shadow-rose-950/20 backdrop-blur-md">
+      <div className="relative w-full h-48 sm:h-60 md:h-68 bg-[#080d19]/80 border border-[#1c2a45] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-rose-950/20 backdrop-blur-md">
         <div
           className="absolute inset-0 opacity-15 pointer-events-none"
           style={{
@@ -278,44 +367,48 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
           }}
         />
 
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-24 rounded-full blur-3xl opacity-25 pointer-events-none bg-rose-600" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-24 rounded-full blur-3xl opacity-25 pointer-events-none bg-rose-600 transition-colors duration-500" />
 
+        {/* Navigation Arrow Left */}
         <button
-          onClick={() => {
-            const next = (activeIndex - 1 + pacts.length) % pacts.length;
-            setActiveIndex(next);
-          }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] hover:border-rose-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-lg active:scale-95"
+          type="button"
+          onClick={goToPrev}
+          className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#0c1322]/90 border border-[#1c2a45] hover:border-rose-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-xl active:scale-95"
           title="Compromiso anterior"
         >
-          <span className="material-symbols-outlined text-lg">chevron_left</span>
+          <span className="material-symbols-outlined text-lg sm:text-xl">chevron_left</span>
         </button>
 
-        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+        {/* Three.js Canvas Container with touchAction: 'none' */}
+        <div
+          ref={mountRef}
+          className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
+          style={{ touchAction: 'none' }}
+        />
 
+        {/* Navigation Arrow Right */}
         <button
-          onClick={() => {
-            const next = (activeIndex + 1) % pacts.length;
-            setActiveIndex(next);
-          }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] hover:border-rose-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-lg active:scale-95"
+          type="button"
+          onClick={goToNext}
+          className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#0c1322]/90 border border-[#1c2a45] hover:border-rose-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-xl active:scale-95"
           title="Siguiente compromiso"
         >
-          <span className="material-symbols-outlined text-lg">chevron_right</span>
+          <span className="material-symbols-outlined text-lg sm:text-xl">chevron_right</span>
         </button>
 
-        <div className="absolute bottom-3 inset-x-0 flex flex-col items-center pointer-events-none">
-          <span className="text-[11px] font-mono text-rose-300/80 bg-[#070a12]/80 px-3 py-1 rounded-full border border-rose-500/30 backdrop-blur-md flex items-center gap-1 shadow-md">
+        <div className="absolute bottom-2 sm:bottom-3 inset-x-0 flex flex-col items-center pointer-events-none">
+          <span className="text-[10px] sm:text-[11px] font-mono text-rose-300/80 bg-[#070a12]/80 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border border-rose-500/30 backdrop-blur-md flex items-center gap-1 shadow-md">
             <span className="material-symbols-outlined text-xs animate-bounce">touch_app</span>
             <span>Toca el orbe central para inspeccionar la contención</span>
           </span>
         </div>
       </div>
 
-      <div className="w-full max-w-xl -mt-6 z-20 px-3">
+      {/* Interactive Telemetry Card: mt-2 prevents mobile overlap */}
+      <div className="w-full max-w-xl mt-2 sm:mt-2.5 z-20 px-1 sm:px-2">
         <div
           onClick={() => onSelectPact(currentPact)}
-          className="p-4 rounded-2xl bg-[#0c1322]/95 border border-[#1c2a45] hover:border-rose-500/80 shadow-2xl transition-all cursor-pointer backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 group"
+          className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0c1322]/95 border border-[#1c2a45] hover:border-rose-500/80 shadow-2xl transition-all cursor-pointer backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 group"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1 w-full sm:w-auto">
             {onRegisterInfraction && (
@@ -334,9 +427,12 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
             )}
 
             <div className="min-w-0 flex-1 text-left">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold text-rose-300 bg-rose-950/40 border border-rose-500/30">
-                  {currentPact.category}
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold text-rose-300 bg-rose-950/40 border border-rose-500/30 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs">
+                    {PACT_CATEGORY_ICONS[currentPact.category] || PACT_CATEGORY_ICONS.default}
+                  </span>
+                  <span>{currentPact.category}</span>
                 </span>
                 <span className="text-[11px] font-mono text-amber-400 flex items-center gap-0.5 font-bold">
                   <span className="material-symbols-outlined text-xs">local_fire_department</span>
@@ -366,11 +462,12 @@ export const PactSpatialCarousel3D: React.FC<PactSpatialCarousel3DProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-1.5 mt-3">
+      <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap max-w-full px-2">
         {pacts.map((p, idx) => (
           <button
             key={p.id}
-            onClick={() => setActiveIndex(idx)}
+            type="button"
+            onClick={(e) => goToIndex(idx, e)}
             className={`h-1.5 rounded-full transition-all ${
               activeIndex === idx
                 ? 'w-6 bg-rose-400 shadow-sm shadow-rose-400'

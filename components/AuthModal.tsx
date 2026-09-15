@@ -85,9 +85,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const handleGuestLogin = () => {
     sound.playAwakening();
     onSuccess({
-      id: 'hunter_local_player',
-      email: 'cazador.local@monarca.shadow',
-      user_metadata: { name: 'Cazador Despierto' },
+      id: 'disciplined_local_player',
+      email: 'usuario.local@disciplina.app',
+      user_metadata: { name: 'Usuario Local' },
     });
     onClose();
   };
@@ -119,10 +119,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <span className="material-symbols-outlined text-2xl">fingerprint</span>
           </div>
           <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider font-mono text-glow">
-            {isLogin ? 'AUTENTICACIÓN DEL CAZADOR' : 'REGISTRO DE NUEVO CAZADOR'}
+            {isLogin ? 'INICIAR SESIÓN' : 'CREAR CUENTA'}
           </h3>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Conexión con el Sistema Central de Cazadores
+            Conexión con el Sistema de Sincronización
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <div>
               <p className="font-bold">Modo de Respaldo Local Activo</p>
               <p className="text-[11px] text-amber-200/80 mt-0.5">
-                Tus datos de cazador se guardan en tu dispositivo. Puedes iniciar con tu cuenta de Google o continuar como Cazador Local con 1 toque.
+                Tus datos se guardan en tu dispositivo. Puedes iniciar con tu cuenta de Google o continuar en Modo Local con 1 toque.
               </p>
             </div>
           </div>
@@ -168,7 +168,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="cazador@ejemplo.com"
+                placeholder="usuario@ejemplo.com"
                 className="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition-colors"
               />
             </div>

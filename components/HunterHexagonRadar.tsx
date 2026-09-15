@@ -114,7 +114,7 @@ export const HunterHexagonRadar: React.FC<HunterHexagonRadarProps> = ({
     if (top1.key === 'int') {
       return { title: 'Archimago del Vacío', desc: 'Alta concentración y maestría cognitiva.' };
     }
-    return { title: 'Monarca de Evolución Total', desc: 'Equilibrio perfecto en todos los vectores de combate.' };
+    return { title: 'Maestría de Evolución Total', desc: 'Equilibrio armonioso en todos los pilares de disciplina.' };
   };
 
   const archetype = getHunterArchetype();
@@ -131,11 +131,11 @@ export const HunterHexagonRadar: React.FC<HunterHexagonRadarProps> = ({
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-cyan-400 text-lg">hexagon</span>
             <h4 className="text-white text-sm sm:text-base font-black uppercase italic font-display tracking-wider">
-              Radar Hexagonal del Monarca
+              Radar Hexagonal de Disciplina
             </h4>
           </div>
           <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-            Topología del maná y equilibrio de combate en 6 dimensiones
+            Topología de competencias y equilibrio personal en 6 dimensiones
           </p>
         </div>
 
@@ -167,7 +167,7 @@ export const HunterHexagonRadar: React.FC<HunterHexagonRadarProps> = ({
                 ? 'bg-amber-950/60 border-amber-500/50 text-amber-300'
                 : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
             }`}
-            title="Alternar punto de referencia de Cazador Rango S"
+            title="Alternar punto de referencia de Rango S"
           >
             <span className="size-2 rounded-full bg-amber-400" />
             <span>Benchmark S</span>

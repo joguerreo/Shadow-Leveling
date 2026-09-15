@@ -138,7 +138,7 @@ export const QuickMobileWidget: React.FC<QuickMobileWidgetProps> = ({
                       setIsOpen(false);
                     }}
                     className="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-slate-300 flex items-center justify-center border border-white/10"
-                    title="Nueva Misión"
+                    title="Nuevo Objetivo"
                   >
                     <span className="material-symbols-outlined text-base">add</span>
                   </button>
@@ -207,7 +207,7 @@ export const QuickMobileWidget: React.FC<QuickMobileWidgetProps> = ({
               {displayedQuests.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 text-xs font-mono space-y-1">
                   <span className="material-symbols-outlined text-2xl text-slate-600">done_all</span>
-                  <p>No hay misiones en esta sección</p>
+                  <p>No hay objetivos en esta sección</p>
                 </div>
               ) : (
                 displayedQuests.map((quest) => {

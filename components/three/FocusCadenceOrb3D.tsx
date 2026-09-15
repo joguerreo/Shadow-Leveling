@@ -39,6 +39,10 @@ export const FocusCadenceOrb3D: React.FC<FocusCadenceOrb3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.userSelect = 'none';
+    renderer.domElement.style.webkitUserSelect = 'none';
+    container.style.touchAction = 'none';
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
@@ -92,12 +96,19 @@ export const FocusCadenceOrb3D: React.FC<FocusCadenceOrb3DProps> = ({
     let previousMousePosition = { x: 0, y: 0 };
 
     const handlePointerDown = (e: PointerEvent) => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      try {
+        renderer.domElement.setPointerCapture(e.pointerId);
+      } catch (_) {}
       isDragging = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
     const handlePointerMove = (e: PointerEvent) => {
       if (!isDragging) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
 
@@ -110,13 +121,25 @@ export const FocusCadenceOrb3D: React.FC<FocusCadenceOrb3DProps> = ({
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
+      try {
+        renderer.domElement.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      if (e.cancelable) e.preventDefault();
       isDragging = false;
     };
 
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    const handleTouchPrevent = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    renderer.domElement.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp, { passive: false });
+    renderer.domElement.addEventListener('touchstart', handleTouchPrevent, { passive: false });
+    renderer.domElement.addEventListener('touchmove', handleTouchPrevent, { passive: false });
 
     // Render loop
     let reqId = 0;
@@ -176,6 +199,8 @@ export const FocusCadenceOrb3D: React.FC<FocusCadenceOrb3DProps> = ({
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      renderer.domElement.removeEventListener('touchstart', handleTouchPrevent);
+      renderer.domElement.removeEventListener('touchmove', handleTouchPrevent);
       renderer.dispose();
       geometry.dispose();
       material.dispose();

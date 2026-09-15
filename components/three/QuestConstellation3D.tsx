@@ -37,6 +37,10 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.userSelect = 'none';
+    renderer.domElement.style.webkitUserSelect = 'none';
+    container.style.touchAction = 'none';
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
@@ -137,6 +141,11 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
     let pointerDownPos = { x: 0, y: 0 };
 
     const handlePointerDown = (e: PointerEvent) => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      try {
+        renderer.domElement.setPointerCapture(e.pointerId);
+      } catch (_) {}
       isDragging = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
       pointerDownPos = { x: e.clientX, y: e.clientY };
@@ -144,6 +153,8 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
 
     const handlePointerMove = (e: PointerEvent) => {
       if (isDragging) {
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
         const deltaX = e.clientX - previousMousePosition.x;
         const deltaY = e.clientY - previousMousePosition.y;
 
@@ -177,6 +188,10 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      try {
+        renderer.domElement.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      if (e.cancelable) e.preventDefault();
       // If was a click (not drag), detect clicked orb
       const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
       if (dist < 5) {
@@ -196,9 +211,17 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
       isDragging = false;
     };
 
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    const handleTouchPrevent = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    renderer.domElement.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp, { passive: false });
+    renderer.domElement.addEventListener('touchstart', handleTouchPrevent, { passive: false });
+    renderer.domElement.addEventListener('touchmove', handleTouchPrevent, { passive: false });
 
     const clock = new THREE.Clock();
     let reqId = 0;
@@ -244,6 +267,8 @@ export const QuestConstellation3D: React.FC<QuestConstellation3DProps> = ({
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      renderer.domElement.removeEventListener('touchstart', handleTouchPrevent);
+      renderer.domElement.removeEventListener('touchmove', handleTouchPrevent);
       renderer.dispose();
       coreGeom.dispose();
       coreMat.dispose();

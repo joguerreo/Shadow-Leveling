@@ -18,63 +18,63 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: '¡DESPERTAR DEL CAZADOR!',
-    subtitle: 'Bienvenido al Sistema de Nivelación en las Sombras',
+    title: '¡BIENVENIDO AL SISTEMA!',
+    subtitle: 'Tu Centro de Evolución Personal y Hábitos',
     icon: 'military_tech',
     badge: 'FASE 1: INICIACIÓN',
-    description: 'Has sido seleccionado por el Sistema como un Jugador. Al igual que Sung Jin-Woo, tu progreso ya no tiene límites. Cada hábito, tarea y entrenamiento de tu vida real se traduce en estadísticas, nivel y recompensas.',
+    description: 'Este es tu entorno de desarrollo y consistencia. Cada hábito, objetivo diario y sesión de concentración de tu vida real se traduce en progreso real, nivel de disciplina y métricas cuantificables.',
     tips: [
-      'Ganas EXP y Oro completando tus misiones de vida real.',
-      'Sube de nivel para ganar puntos de atributos no asignados.',
-      'Tu Rango (E ➔ D ➔ C ➔ B ➔ A ➔ S ➔ Monarca) escala con tu disciplina.',
+      'Ganas experiencia (XP) y puntos de disciplina al cumplir tus compromisos diarios.',
+      'Sube de nivel para ganar puntos de atributos y desbloquear mayor temple personal.',
+      'Tu nivel de disciplina y energía aumentan directamente con tu consistencia.',
     ],
   },
   {
-    title: 'MISIONES DIARIAS & HÁBITOS',
-    subtitle: 'El Protocolo de Supervivencia Cotidiano',
+    title: 'OBJETIVOS DIARIOS',
+    subtitle: 'Consistencia y Cumplimiento Cotidiano',
     icon: 'task_alt',
-    badge: 'FASE 2: MISIONES',
-    description: 'En el panel principal encontrarás tus Misiones Diarias y Hábitos. Tienes misiones de Fuerza (ejercicio), Intelecto (estudio/lectura), Disciplina y Mente. Además, puedes presionar "Misión del Sistema" para que el Oráculo IA te formule una prueba según tus necesidades.',
+    badge: 'FASE 2: OBJETIVOS',
+    description: 'En el Hub principal visualizas tus Objetivos Diarios en vista Espacial 3D, Cuadrícula de Orbes o Lista Clásica. Toca o mantén presionado un objetivo para registrar su cumplimiento y avanzar en tu barra de progreso diario.',
     tips: [
-      'Marca el progreso con los botones "+" y "✓".',
-      'Mantén tu racha activa para multiplicar recompensas.',
-      '¡Cuidado con ignorar tus misiones! El Sistema puede activar el Modo Penalización si fallas.',
+      'Filtra rápidamente entre Todos, Pendientes o Completados.',
+      'Usa el botón "+ Nuevo" en la cabecera para incorporar nuevas metas.',
+      'Mantén tu racha diaria activa para consolidar hábitos sólidos.',
     ],
   },
   {
-    title: 'ASIGNACIÓN DE ATRIBUTOS & PODER',
-    subtitle: 'Construye tu Estilo de Combate',
-    icon: 'monitoring',
-    badge: 'FASE 3: ESTADÍSTICAS',
-    description: 'Cada nivel que asciendas te otorga Puntos de Atributo. Puedes invertirlos libremente en Fuerza (STR), Agilidad (AGI), Inteligencia (INT), Vitalidad (VIT) y Percepción (PER) para aumentar tu Poder de Combate (CP).',
+    title: 'COMPROMISOS INNEGOCIABLES',
+    subtitle: 'Líneas Rojas y Reglas de Conducta',
+    icon: 'verified_user',
+    badge: 'FASE 3: COMPROMISOS',
+    description: 'Los Compromisos representan tus líneas rojas (cero alcohol, cero desvelo, cero ultraprocesados, cero distracciones digitales). Cada compromiso cuenta con un contador de días limpios e impacto directo en tu barra de energía y salud.',
     tips: [
-      'STR aumenta tu capacidad física y carga.',
-      'INT incrementa tu Maná máximo (MP) para invocar Sombras y habilidades.',
-      'VIT fortalece tu resistencia y recuperación.',
+      'Si tienes un desliz, regístralo honestamente: el sistema te recordará tu pacto con voz reflexiva.',
+      'Si estás enfermo o en un viaje justificado, solicita una Tregua Temporal para proteger tu racha.',
+      'Añade tus propios compromisos personalizados según tus estándares de vida.',
     ],
   },
   {
-    title: 'MAZMORRAS & FOCUS POMODORO',
-    subtitle: 'Entra a los Portales de Concentración',
-    icon: 'hourglass_top',
-    badge: 'FASE 4: PORTALES',
-    description: 'La sección de Mazmorras te permite entrar a portales de concentración profunda cronometrada (Pomodoro cuántico). Elige un rango (Rango E hasta Rango S) y enfócate sin distracciones para conquistar el portal y reclamar gemas de esencia.',
+    title: 'ENFOQUE & CADENCIA',
+    subtitle: 'Sesiones de Concentración y Respiración Cuadrada',
+    icon: 'timer',
+    badge: 'FASE 4: ENFOQUE',
+    description: 'Accede al modo Enfoque con temporizador personalizable, orbe de cadencia visual 3D guiada por el protocolo de respiración de 16 segundos (Inhala, Sostén, Exhala, Pausa) y paisajes sonoros ambientales relajantes (Lluvia, Bosque, Ruido Blanco).',
     tips: [
-      'Completa los ciclos de enfoque para derrotar al jefe del portal.',
-      'Si sales antes de tiempo, el portal colapsará.',
-      'Puedes crear tus propias mazmorras para proyectos largos.',
+      'Configura bloques de 15, 25, 45 o 60 minutos según tu sesión.',
+      'Elige el audio ambiental que mejor te sumerja en estado de flujo profundo.',
+      'Utiliza la respiración sincronizada para calmar la ansiedad y afilar la concentración.',
     ],
   },
   {
-    title: 'MERCADO, EJÉRCITO & PERSISTENCIA',
-    subtitle: 'Sincronización en la Nube y Equipamiento',
-    icon: 'groups',
+    title: 'MENÚ ESTRELLA & ANALÍTICA',
+    subtitle: 'Navegación Rápida y Auditoría de Resultados',
+    icon: 'insights',
     badge: 'FASE 5: DOMINIO',
-    description: 'Visita el Mercado para canjear tu oro por pociones, armas y títulos. Extrae sombras en el Ejército de Sombras para enviarlas a expediciones pasivas. Y en la barra superior, pulsa "LOGIN" para vincular tu cuenta con Supabase.',
+    description: 'El botón central con forma de estrella en la barra inferior despliega de forma radial el acceso directo a tus Objetivos, Competencias, Compromisos, Sesiones de Enfoque y tu nueva pantalla de Analítica Integral con trazabilidad de deslices.',
     tips: [
-      'Tu progreso se guarda automáticamente en tu navegador (LocalStorage).',
-      'Conecta tu cuenta de Supabase en el botón superior para sincronizar entre dispositivos.',
-      '¡Levántate, Cazador! Tu ascenso comienza ahora.',
+      'En Analítica consulta tu tasa de cumplimiento, deslices por compromiso y diagnóstico.',
+      'Sincroniza tus datos de forma local o en la nube para mantener tu historial seguro.',
+      'Tu viaje hacia el dominio de tus hábitos comienza ahora.',
     ],
   },
 ];
@@ -194,7 +194,7 @@ export const SystemTourModal: React.FC<SystemTourModalProps> = ({ isOpen, onClos
             onClick={handleNext}
             className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all shadow-lg shadow-primary/30 flex items-center gap-2"
           >
-            <span>{isLast ? '¡DESPERTAR AHORA!' : 'SIGUIENTE'}</span>
+            <span>{isLast ? '¡COMENZAR AHORA!' : 'SIGUIENTE'}</span>
             <span className="material-symbols-outlined text-sm">
               {isLast ? 'bolt' : 'arrow_forward'}
             </span>

@@ -52,13 +52,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
             <div className="space-y-2">
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary block font-mono">
-                [ ALERTA DEL SISTEMA DEL MONARCA ]
+                [ ALERTA DEL SISTEMA DE DISCIPLINA ]
               </span>
               <h2 className="text-2xl font-black font-display text-white tracking-tight">
-                Distorsión de Maná Detectada
+                Anomalía de Interfaz Contenida
               </h2>
               <p className="text-slate-400 text-xs leading-relaxed font-mono">
-                El sistema ha contenido una anomalía en la interfaz neuronal para proteger los datos de tu Cazador.
+                El sistema ha contenido una anomalía en la interfaz para proteger tus datos de progreso y hábitos.
               </p>
             </div>
 

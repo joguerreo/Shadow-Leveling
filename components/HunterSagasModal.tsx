@@ -289,7 +289,7 @@ export const HunterSagasModal: React.FC<HunterSagasModalProps> = ({
         {/* Mobile Quick Action Bottom Bar */}
         <div className="p-3 sm:p-4 bg-slate-950/90 backdrop-blur-md border-t border-white/10 flex items-center justify-between gap-3 shrink-0">
           <span className="text-[11px] font-mono text-slate-400 truncate">
-            {currentSaga ? `${currentSaga.title} (${activeDays}/${currentSaga.durationDays}d)` : 'Sagas del Monarca'}
+            {currentSaga ? `${currentSaga.title} (${activeDays}/${currentSaga.durationDays}d)` : 'Sagas de Disciplina'}
           </span>
           <button
             onClick={onClose}

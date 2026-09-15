@@ -70,15 +70,15 @@ export const WeeklyAuditModal: React.FC<WeeklyAuditModalProps> = ({ player, onCl
           laggingStat: 'Claridad Mental y Recuperación',
           completedQuestsCount: player.activityHistory?.reduce((acc, d) => acc + d.questsCompleted, 0) || 12,
           totalXpGained: player.xp,
-          aiDiagnosticTitle: 'DICTAMEN DEL SISTEMA: DESPERTAR CONTINUO',
-          aiAnalysis: `El cazador ${player.name} mantiene una trayectoria ascendente con una racha activa de ${player.streakDays} días. Tu núcleo de maná se estabiliza. Continúa ejecutando tus protocolos diarios para consolidar tu rango de Monarca.`,
+          aiDiagnosticTitle: 'DICTAMEN DEL SISTEMA: PROGRESO SOSTENIDO',
+          aiAnalysis: `${player.name} mantiene una trayectoria ascendente con una racha activa de ${player.streakDays} días. Tu consistencia y control de hábitos se consolidan. Sigue cumpliendo tus objetivos diarios y protegiendo tus compromisos innegociables.`,
           aiRecommendations: [
-            'Incrementa los bloques de foco profundo para balancear INT y WIS.',
-            'Mantén la hidratación matutina antes de cualquier incursión física.',
-            'Conquista una mazmorra de concentración cada 48 horas.',
+            'Incrementa los bloques de foco profundo para balancear tu claridad mental.',
+            'Mantén la hidratación y nutrición limpia antes de comenzar tu jornada.',
+            'Realiza al menos una sesión de respiración y enfoque cada día.',
           ],
           recommendedFocusCategory: 'discipline',
-          hunterAssociationSeal: 'CERTIFICACIÓN OFICIAL DE LA ASOCIACIÓN DE CAZADORES',
+          hunterAssociationSeal: 'CERTIFICACIÓN OFICIAL DEL SISTEMA DE DISCIPLINA',
         };
         setReport(fallbackAudit);
         onSaveAudit?.(fallbackAudit);
@@ -101,7 +101,7 @@ export const WeeklyAuditModal: React.FC<WeeklyAuditModalProps> = ({ player, onCl
 
     setIsSpeaking(true);
     sound.speakSystemVoice(
-      `Informe oficial de la Asociación de Cazadores para ${player.name}. Calificación: Rango ${report.hunterRating}. Puntaje de consistencia: ${report.consistencyScore} por ciento. ${report.aiAnalysis}`
+      `Informe oficial del Sistema de Disciplina para ${player.name}. Calificación: Rango ${report.hunterRating}. Puntaje de consistencia: ${report.consistencyScore} por ciento. ${report.aiAnalysis}`
     );
   };
 
@@ -133,7 +133,7 @@ export const WeeklyAuditModal: React.FC<WeeklyAuditModalProps> = ({ player, onCl
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <h3 className="text-white text-sm sm:text-lg font-black italic uppercase tracking-wider font-display truncate">
-                  Auditoría Semanal de Cazador
+                  Auditoría Semanal de Disciplina
                 </h3>
                 <span className="px-1.5 sm:px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[9px] sm:text-[10px] font-black uppercase font-mono shrink-0">
                   IA

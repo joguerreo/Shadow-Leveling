@@ -30,7 +30,7 @@ const CreateDungeonModal: React.FC<CreateDungeonModalProps> = ({ isOpen, onClose
 
     onAddDungeon({
       title: title.trim(),
-      description: description.trim() || 'Incursión generada por el cazador para forjar maestría.',
+      description: description.trim() || 'Sesión de reto profundo de hábitos y enfoque.',
       rank,
       icon,
       type,
@@ -57,9 +57,9 @@ const CreateDungeonModal: React.FC<CreateDungeonModalProps> = ({ isOpen, onClose
             <span className="material-symbols-outlined text-primary text-2xl">door_front</span>
             <div>
               <h3 className="text-white text-lg font-black uppercase italic tracking-tight">
-                Abrir Portal de Mazmorra
+                Crear Bloque de Reto / Enfoque
               </h3>
-              <p className="text-slate-400 text-xs font-medium">Configura una nueva incursión de alta intensidad</p>
+              <p className="text-slate-400 text-xs font-medium">Configura una nueva sesión de alta intensidad</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-white">
@@ -70,7 +70,7 @@ const CreateDungeonModal: React.FC<CreateDungeonModalProps> = ({ isOpen, onClose
         <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Nombre de la Mazmorra / Incursión
+              Nombre del Reto / Bloque de Enfoque
             </label>
             <input
               autoFocus

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Quest } from '../../types';
+import { createCategoryIconSprite, QUEST_CATEGORY_ICONS } from './CategoryIconSprite';
 
 interface QuestSpatialCarousel3DProps {
   quests: Quest[];
@@ -27,8 +28,8 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
   const mountRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
-  const [isInspecting, setIsInspecting] = useState(false);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const setTargetAngleFnRef = useRef<((idx: number) => void) | null>(null);
+  const [, setHoveredIdx] = useState<number | null>(null);
 
   // Keep ref synchronized
   useEffect(() => {
@@ -50,18 +51,22 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.userSelect = 'none';
+    renderer.domElement.style.webkitUserSelect = 'none';
+    container.style.touchAction = 'none';
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
     // Subtle lighting for elegant glossy reflection on smooth orbs
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.25);
     dirLight.position.set(3, 5, 4);
     scene.add(dirLight);
 
-    const pointLight = new THREE.PointLight(0x38bdf8, 1.5, 10);
+    const pointLight = new THREE.PointLight(0x38bdf8, 1.6, 10);
     pointLight.position.set(0, 0, 3);
     scene.add(pointLight);
 
@@ -75,17 +80,19 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       core: THREE.Mesh;
       shell: THREE.Mesh;
       ring: THREE.Mesh;
+      iconSprite?: THREE.Sprite;
       index: number;
     }[] = [];
 
     const total = quests.length;
     const radius = Math.max(3.2, total * 0.55); // Dynamic radius based on quest count
+    const anglePerItem = (Math.PI * 2) / Math.max(total, 1);
 
     quests.forEach((q, idx) => {
       const orbGroup = new THREE.Group();
       const catColor = CATEGORY_HEX[q.category] || CATEGORY_HEX.intellect;
 
-      // 1. Sleek Ultra-Smooth Core Sphere (High segment count: 48x48)
+      // 1. Sleek Ultra-Smooth Core Sphere
       const coreGeom = new THREE.SphereGeometry(0.58, 48, 48);
       const coreMat = new THREE.MeshStandardMaterial({
         color: q.completed ? 0x64748b : catColor.core,
@@ -97,7 +104,7 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       const coreMesh = new THREE.Mesh(coreGeom, coreMat);
       orbGroup.add(coreMesh);
 
-      // 2. Soft Luminous Minimal Halo Outer Sphere (Clean, no intersecting polygonal wire lines)
+      // 2. Soft Luminous Minimal Halo Outer Sphere
       const shellGeom = new THREE.SphereGeometry(0.72, 32, 32);
       const shellMat = new THREE.MeshBasicMaterial({
         color: q.completed ? 0x475569 : catColor.wire,
@@ -108,7 +115,7 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       const shellMesh = new THREE.Mesh(shellGeom, shellMat);
       orbGroup.add(shellMesh);
 
-      // 3. Ultra-Fine Minimal Orbital Horizon Ring (Clean and thin)
+      // 3. Ultra-Fine Minimal Orbital Horizon Ring
       const ringGeom = new THREE.TorusGeometry(0.85, 0.012, 16, 64);
       const ringMat = new THREE.MeshBasicMaterial({
         color: q.completed ? 0x334155 : catColor.wire,
@@ -119,6 +126,13 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       ringMesh.rotation.x = Math.PI / 2.8;
       orbGroup.add(ringMesh);
 
+      // 4. Category Icon Inside Orb
+      const iconName = QUEST_CATEGORY_ICONS[q.category] || QUEST_CATEGORY_ICONS.default;
+      const sprite = createCategoryIconSprite(iconName, catColor.glow, 256);
+      sprite.scale.set(0.68, 0.68, 1);
+      sprite.position.set(0, 0, 0.1);
+      orbGroup.add(sprite);
+
       orbGroup.userData = { questIndex: idx };
       carouselGroup.add(orbGroup);
 
@@ -127,30 +141,40 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
         core: coreMesh,
         shell: shellMesh,
         ring: ringMesh,
+        iconSprite: sprite,
         index: idx,
       });
     });
 
-    // Raycaster for mouse interaction
+    // Raycaster for pointer interaction
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
     // Drag / Swipe handling
     let isDragging = false;
     let startX = 0;
+    let dragDistance = 0;
     let currentAngle = 0;
     let targetAngle = 0;
 
-    const anglePerItem = (Math.PI * 2) / Math.max(total, 1);
-
-    const updateTargetAngleFromIndex = (idx: number) => {
-      targetAngle = -idx * anglePerItem;
+    const snapToIndex = (idx: number) => {
+      let normalized = ((idx % total) + total) % total;
+      setActiveIndex(normalized);
+      targetAngle = -normalized * anglePerItem;
     };
-    updateTargetAngleFromIndex(activeIndexRef.current);
+
+    setTargetAngleFnRef.current = snapToIndex;
+    snapToIndex(activeIndexRef.current);
 
     const handlePointerDown = (e: PointerEvent) => {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch (_) {}
       isDragging = true;
       startX = e.clientX;
+      dragDistance = 0;
     };
 
     const handlePointerMove = (e: PointerEvent) => {
@@ -176,23 +200,33 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       }
 
       if (!isDragging) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
       const deltaX = e.clientX - startX;
       startX = e.clientX;
+      dragDistance += Math.abs(deltaX);
       targetAngle += (deltaX / width) * 2.8;
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      try {
+        container.releasePointerCapture(e.pointerId);
+      } catch (_) {}
       if (!isDragging) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
       isDragging = false;
 
-      // Snap to closest index
-      let closestIdx = Math.round(-targetAngle / anglePerItem);
-      // Normalize index modulo total
-      closestIdx = ((closestIdx % total) + total) % total;
-      setActiveIndex(closestIdx);
-      targetAngle = -closestIdx * anglePerItem;
+      // If user moved more than 8 pixels, treat as swipe/drag
+      if (dragDistance > 8) {
+        let closestIdx = Math.round(-targetAngle / anglePerItem);
+        closestIdx = ((closestIdx % total) + total) % total;
+        setActiveIndex(closestIdx);
+        targetAngle = -closestIdx * anglePerItem;
+        return;
+      }
 
-      // Check click without drag
+      // Check click/tap on orbs
       const rect = container.getBoundingClientRect();
       const clickX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const clickY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -207,19 +241,31 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
         const found = orbMeshes.find((m) => m.core === intersects[0].object);
         if (found) {
           if (found.index === activeIndexRef.current) {
-            // Clicked the center orb -> open detail / inspect
             onSelectQuest(quests[found.index]);
           } else {
-            // Clicked another orb -> rotate to it
-            setActiveIndex(found.index);
+            snapToIndex(found.index);
           }
         }
+      } else {
+        // Snap back to current
+        let closestIdx = Math.round(-targetAngle / anglePerItem);
+        closestIdx = ((closestIdx % total) + total) % total;
+        targetAngle = -closestIdx * anglePerItem;
       }
     };
 
-    container.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    const handleTouchPrevent = (e: TouchEvent) => {
+      // Strictly prevent browser gestures/viewport scrolling when touching the 3D orb carousel
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp, { passive: false });
+    container.addEventListener('touchstart', handleTouchPrevent, { passive: false });
+    container.addEventListener('touchmove', handleTouchPrevent, { passive: false });
 
     // Resize observer
     const handleResize = () => {
@@ -248,8 +294,8 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       orbMeshes.forEach((item) => {
         const itemAngle = currentAngle + item.index * anglePerItem;
         const x = Math.sin(itemAngle) * radius;
-        const z = Math.cos(itemAngle) * radius - radius + 0.3; // Bring front orb forward
-        const y = Math.sin(elapsed * 1.5 + item.index) * 0.08; // Subtle idle breathing
+        const z = Math.cos(itemAngle) * radius - radius + 0.3;
+        const y = Math.sin(elapsed * 1.5 + item.index) * 0.08;
 
         item.group.position.set(x, y, z);
 
@@ -259,12 +305,11 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
         item.shell.rotation.x += 0.008;
         item.ring.rotation.z += 0.02;
 
-        // Frontmost orb receives focus scaling & bloom expansion
+        // Frontmost orb receives focus scaling & pulse
         const isCenter = Math.abs(itemAngle % (Math.PI * 2)) < anglePerItem * 0.45;
         const targetScale = isCenter ? 1.25 : 0.82;
         item.group.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
 
-        // Opening animation when center orb is clicked/inspected
         if (isCenter) {
           const pulse = 1.0 + Math.sin(elapsed * 3) * 0.03;
           item.shell.scale.set(pulse, pulse, pulse);
@@ -281,6 +326,8 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       container.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      container.removeEventListener('touchstart', handleTouchPrevent);
+      container.removeEventListener('touchmove', handleTouchPrevent);
       resizeObserver.disconnect();
       renderer.dispose();
       orbMeshes.forEach((m) => {
@@ -291,8 +338,38 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      setTargetAngleFnRef.current = null;
     };
   }, [quests, onSelectQuest]);
+
+  const goToNext = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const next = (activeIndex + 1) % quests.length;
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(next);
+    } else {
+      setActiveIndex(next);
+    }
+  };
+
+  const goToPrev = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prev = (activeIndex - 1 + quests.length) % quests.length;
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(prev);
+    } else {
+      setActiveIndex(prev);
+    }
+  };
+
+  const goToIndex = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (setTargetAngleFnRef.current) {
+      setTargetAngleFnRef.current(idx);
+    } else {
+      setActiveIndex(idx);
+    }
+  };
 
   if (quests.length === 0) {
     return (
@@ -308,7 +385,7 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
   return (
     <div className="w-full flex flex-col items-center select-none">
       {/* 3D Interactive Spatial Stage */}
-      <div className="relative w-full h-72 sm:h-80 bg-[#080d19]/80 border border-[#1c2a45] rounded-3xl overflow-hidden shadow-2xl shadow-cyan-950/20 backdrop-blur-md">
+      <div className="relative w-full h-48 sm:h-60 md:h-68 bg-[#080d19]/80 border border-[#1c2a45] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-cyan-950/20 backdrop-blur-md">
         {/* Subtle grid background */}
         <div
           className="absolute inset-0 opacity-15 pointer-events-none"
@@ -326,45 +403,45 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
 
         {/* Navigation Arrow Left */}
         <button
-          onClick={() => {
-            const next = (activeIndex - 1 + quests.length) % quests.length;
-            setActiveIndex(next);
-          }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] hover:border-cyan-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-lg active:scale-95"
+          type="button"
+          onClick={goToPrev}
+          className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#0c1322]/90 border border-[#1c2a45] hover:border-cyan-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-xl active:scale-95"
           title="Objetivo anterior"
         >
-          <span className="material-symbols-outlined text-lg">chevron_left</span>
+          <span className="material-symbols-outlined text-lg sm:text-xl">chevron_left</span>
         </button>
 
-        {/* Three.js Canvas Container */}
-        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+        {/* Three.js Canvas Container with touch-action: none to avoid mobile page scrolling while swiping */}
+        <div
+          ref={mountRef}
+          className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
+          style={{ touchAction: 'none' }}
+        />
 
         {/* Navigation Arrow Right */}
         <button
-          onClick={() => {
-            const next = (activeIndex + 1) % quests.length;
-            setActiveIndex(next);
-          }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0c1322]/80 border border-[#1c2a45] hover:border-cyan-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-lg active:scale-95"
+          type="button"
+          onClick={goToNext}
+          className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#0c1322]/90 border border-[#1c2a45] hover:border-cyan-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-xl active:scale-95"
           title="Siguiente objetivo"
         >
-          <span className="material-symbols-outlined text-lg">chevron_right</span>
+          <span className="material-symbols-outlined text-lg sm:text-xl">chevron_right</span>
         </button>
 
         {/* Centered Hologram Click Target Overlay */}
-        <div className="absolute bottom-3 inset-x-0 flex flex-col items-center pointer-events-none">
-          <span className="text-[11px] font-mono text-cyan-400/80 bg-[#070b14]/80 px-3 py-1 rounded-full border border-cyan-500/30 backdrop-blur-md flex items-center gap-1 shadow-md">
+        <div className="absolute bottom-2 sm:bottom-3 inset-x-0 flex flex-col items-center pointer-events-none">
+          <span className="text-[10px] sm:text-[11px] font-mono text-cyan-400/80 bg-[#070b14]/80 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border border-cyan-500/30 backdrop-blur-md flex items-center gap-1 shadow-md">
             <span className="material-symbols-outlined text-xs animate-bounce">touch_app</span>
             <span>Toca el orbe central para abrir su información</span>
           </span>
         </div>
       </div>
 
-      {/* Interactive Telemetry Card of the Selected Orb */}
-      <div className="w-full max-w-xl -mt-6 z-20 px-3">
+      {/* Interactive Telemetry Card of Selected Orb: mt-2 prevents mobile overlap */}
+      <div className="w-full max-w-xl mt-2 sm:mt-2.5 z-20 px-1 sm:px-2">
         <div
           onClick={() => onSelectQuest(currentQuest)}
-          className="p-4 rounded-2xl bg-[#0c1322]/95 border border-[#1c2a45] hover:border-cyan-400/80 shadow-2xl transition-all cursor-pointer backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 group"
+          className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0c1322]/95 border border-[#1c2a45] hover:border-cyan-400/80 shadow-2xl transition-all cursor-pointer backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 group"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1 w-full sm:w-auto">
             {/* Direct Complete Circle Button */}
@@ -387,16 +464,19 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
             )}
 
             <div className="min-w-0 flex-1 text-left">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span
-                  className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold"
+                  className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold flex items-center gap-1"
                   style={{
                     color: catStyle.glow,
                     background: `${catStyle.glow}18`,
                     border: `1px solid ${catStyle.glow}40`,
                   }}
                 >
-                  {currentQuest.category}
+                  <span className="material-symbols-outlined text-xs">
+                    {QUEST_CATEGORY_ICONS[currentQuest.category] || QUEST_CATEGORY_ICONS.default}
+                  </span>
+                  <span>{currentQuest.category}</span>
                 </span>
                 <span className="text-[11px] font-mono font-bold text-amber-400">
                   +{currentQuest.rewards.xp} XP
@@ -431,11 +511,12 @@ export const QuestSpatialCarousel3D: React.FC<QuestSpatialCarousel3DProps> = ({
       </div>
 
       {/* Scannable Dots Indicator */}
-      <div className="flex items-center justify-center gap-1.5 mt-3">
+      <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap max-w-full px-2">
         {quests.map((q, idx) => (
           <button
             key={q.id}
-            onClick={() => setActiveIndex(idx)}
+            type="button"
+            onClick={(e) => goToIndex(idx, e)}
             className={`h-1.5 rounded-full transition-all ${
               activeIndex === idx
                 ? 'w-6 bg-cyan-400 shadow-sm shadow-cyan-400'

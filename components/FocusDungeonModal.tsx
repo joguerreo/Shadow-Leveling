@@ -49,7 +49,7 @@ export const FocusDungeonModal: React.FC<FocusDungeonModalProps> = ({
 
   const handleStart = () => {
     sound.playAwakening();
-    sound.speakSystemVoice(`Iniciando Mazmorra de Concentración de ${selectedDuration} minutos. Concentra tu maná.`);
+    sound.speakSystemVoice(`Iniciando Sesión de Enfoque de ${selectedDuration} minutos. Concentra tu atención.`);
     setIsActive(true);
     setIsPaused(false);
     if (ambientMode !== 'off') {
@@ -106,7 +106,7 @@ export const FocusDungeonModal: React.FC<FocusDungeonModalProps> = ({
   const handleCompleteSession = () => {
     sound.stopAmbient();
     sound.playRaidVictory();
-    sound.speakSystemVoice('¡Mazmorra de Concentración Conquistada! Recompensas de maná transferidas.');
+    sound.speakSystemVoice('¡Sesión de Enfoque Completada! Recompensas de disciplina transferidas.');
 
     const xpEarned = selectedDuration * 40;
     const goldEarned = selectedDuration * 80;
@@ -130,7 +130,7 @@ export const FocusDungeonModal: React.FC<FocusDungeonModalProps> = ({
             </span>
             <div className="min-w-0">
               <h3 className="text-white text-sm sm:text-base font-black italic uppercase tracking-wider font-display truncate">
-                Mazmorra de Concentración
+                Sesión de Enfoque Profundo
               </h3>
               <p className="text-cyan-300 text-[10px] font-mono truncate">Temporizador de Maná & Deep Work Pomodoro</p>
             </div>
@@ -222,7 +222,7 @@ export const FocusDungeonModal: React.FC<FocusDungeonModalProps> = ({
                 onClick={handleReset}
                 className="px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-red-300 font-mono font-bold text-xs uppercase rounded-xl transition-all"
               >
-                Abandonar Mazmorra
+                Terminar Sesión
               </button>
             </div>
           )}

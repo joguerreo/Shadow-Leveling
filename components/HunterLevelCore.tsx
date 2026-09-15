@@ -34,7 +34,7 @@ export const HunterLevelCore: React.FC<HunterLevelCoreProps> = ({
         onOpenProfile?.();
       }}
       className="relative flex items-center justify-center cursor-pointer group/core shrink-0 select-none touch-manipulation"
-      title="Núcleo del Cazador: Toca para ver tu Hoja de Perfil"
+      title="Núcleo de Progreso: Toca para ver tu Perfil"
       style={{ width: dimension, height: dimension }}
     >
       {/* Outer Breathing Glow Halo */}

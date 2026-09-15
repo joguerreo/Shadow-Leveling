@@ -81,7 +81,7 @@ export const EmergencyQuestModal: React.FC<EmergencyQuestModalProps> = ({ player
         statPoints: 1,
       },
       aiGenerated: true,
-      systemMessage: questData.warningMessage || '¡MISIÓN DE EMERGENCIA ACTIVADA!',
+      systemMessage: questData.warningMessage || '¡OBJETIVO DE EMERGENCIA ACTIVADO!',
       createdAt: new Date().toISOString(),
       completed: false,
     };
@@ -99,7 +99,7 @@ export const EmergencyQuestModal: React.FC<EmergencyQuestModalProps> = ({ player
         {/* Warning Bar */}
         <div className="bg-red-600 text-white font-black text-xs py-1.5 px-4 uppercase tracking-widest text-center flex items-center justify-center gap-2">
           <span className="material-symbols-outlined text-base animate-spin">warning</span>
-          ¡ALERTA MÁXIMA DEL SISTEMA: INCURSIÓN DE PUERTA ROJA!
+          ¡ALERTA DEL SISTEMA: DESAFÍO PRIORITARIO DE DISCIPLINA!
           <span className="material-symbols-outlined text-base animate-spin">warning</span>
         </div>
 
@@ -109,7 +109,7 @@ export const EmergencyQuestModal: React.FC<EmergencyQuestModalProps> = ({ player
             <div className="py-12 text-center space-y-4">
               <div className="w-16 h-16 mx-auto border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-red-400 font-mono font-bold text-sm tracking-widest uppercase">
-                Detectando distorsión en la Mazmorra...
+                Detectando necesidad de ajuste disciplinario...
               </p>
             </div>
           ) : (

@@ -131,7 +131,7 @@ export const MirrorShadowModal: React.FC<MirrorShadowModalProps> = ({
               />
             </div>
             <p className="text-slate-400 text-[11px] leading-relaxed">
-              Cada misión y hábito que completas en el día asesta un golpe crítico a tu sombra del pasado.
+              Cada objetivo y hábito que completas en el día asesta un golpe crítico a tu sombra del pasado.
             </p>
           </div>
 
@@ -158,7 +158,7 @@ export const MirrorShadowModal: React.FC<MirrorShadowModalProps> = ({
               )
             ) : (
               <div className="p-3 bg-white/5 rounded-xl text-center text-slate-400 text-xs font-mono">
-                Completa más misiones diarias para vencer a tu sombra reflejo.
+                Completa más objetivos diarios para vencer a tu sombra reflejo.
               </div>
             )}
           </div>

@@ -18,13 +18,13 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
 
   const handleCopyStats = () => {
     sound.playBeep(700, 0.04);
-    const summary = `🛡️ LICENCIA OFICIAL DE CAZADOR
-👤 Cazador: ${player.name}
+    const summary = `🛡️ CREDENCIAL OFICIAL DE DISCIPLINA
+👤 Operador: ${player.name}
 🎖️ Rango: ${player.rank} (Nvl ${player.level})
-🔥 Poder de Combate: ${combatPower.toLocaleString()} CP
+🔥 Índice de Disciplina: ${combatPower.toLocaleString()} CP
 ⚡ Racha: ${player.streakDays} Días
-🏛️ Licencia Nº: ${hunterLicenseId}
-⚔️ Asociación de Cazadores de las Sombras`;
+🏛️ Registro Nº: ${hunterLicenseId}
+⚔️ Sistema Central de Hábitos y Rendimiento`;
     
     navigator.clipboard?.writeText(summary);
     setCopied(true);
@@ -89,10 +89,10 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
               </div>
               <div>
                 <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest block">
-                  KOREA HUNTER ASSOCIATION
+                  SISTEMA DE HÁBITOS & RENDIMIENTO
                 </span>
                 <h4 className="text-white text-base font-black uppercase font-display tracking-wider">
-                  Licencia Oficial de Cazador
+                  Credencial Oficial de Disciplina
                 </h4>
               </div>
             </div>
@@ -123,7 +123,7 @@ export const HunterLicenseModal: React.FC<HunterLicenseModalProps> = ({ player, 
             <div className="sm:col-span-2 space-y-3">
               <div>
                 <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider">
-                  Cazador Registrado
+                  Operador Registrado
                 </span>
                 <h3 className="text-white text-2xl font-black font-display uppercase tracking-wide truncate">
                   {player.name}

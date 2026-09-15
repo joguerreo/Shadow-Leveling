@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createCategoryIconSprite, QUEST_CATEGORY_ICONS } from './CategoryIconSprite';
 
 interface QuestOrb3DProps {
   category: string;
@@ -7,12 +8,17 @@ interface QuestOrb3DProps {
   size?: number;
 }
 
-const CATEGORY_COLOR_HEX: Record<string, { main: number; light: number; wire: number }> = {
-  physical: { main: 0xe11d48, light: 0xfb7185, wire: 0xf43f5e }, // Rose / Red
-  intellect: { main: 0x0284c7, light: 0x38bdf8, wire: 0x06b6d4 }, // Cyan / Sky
-  focus: { main: 0x9333ea, light: 0xc084fc, wire: 0xa855f7 }, // Purple
-  vitality: { main: 0x059669, light: 0x34d399, wire: 0x10b981 }, // Emerald
-  daily: { main: 0xd97706, light: 0xfcd34d, wire: 0xf59e0b }, // Amber
+const CATEGORY_COLOR_HEX: Record<string, { main: number; light: number; wire: number; glow: string }> = {
+  physical: { main: 0xe11d48, light: 0xfb7185, wire: 0xf43f5e, glow: '#f43f5e' },
+  fitness: { main: 0xe11d48, light: 0xfb7185, wire: 0xf43f5e, glow: '#f43f5e' },
+  intellect: { main: 0x0284c7, light: 0x38bdf8, wire: 0x06b6d4, glow: '#06b6d4' },
+  focus: { main: 0x9333ea, light: 0xc084fc, wire: 0xa855f7, glow: '#a855f7' },
+  discipline: { main: 0x9333ea, light: 0xc084fc, wire: 0xa855f7, glow: '#a855f7' },
+  vitality: { main: 0x059669, light: 0x34d399, wire: 0x10b981, glow: '#10b981' },
+  habit: { main: 0x059669, light: 0x34d399, wire: 0x10b981, glow: '#10b981' },
+  mindfulness: { main: 0x0d9488, light: 0x2dd4bf, wire: 0x14b8a6, glow: '#14b8a6' },
+  daily: { main: 0xd97706, light: 0xfcd34d, wire: 0xf59e0b, glow: '#f59e0b' },
+  special: { main: 0xd97706, light: 0xfcd34d, wire: 0xf59e0b, glow: '#f59e0b' },
 };
 
 export const QuestOrb3D: React.FC<QuestOrb3DProps> = ({
@@ -89,6 +95,13 @@ export const QuestOrb3D: React.FC<QuestOrb3DProps> = ({
       orbGroup.add(ringMesh);
     }
 
+    // 4. Category icon sprite inside orb
+    const iconName = QUEST_CATEGORY_ICONS[category] || QUEST_CATEGORY_ICONS.default;
+    const iconSprite = createCategoryIconSprite(iconName, completed ? '#94a3b8' : colors.glow, 256);
+    iconSprite.scale.set(0.72, 0.72, 1);
+    iconSprite.position.set(0, 0, 0.1);
+    orbGroup.add(iconSprite);
+
     const clock = new THREE.Clock();
     let reqId = 0;
 
@@ -125,6 +138,8 @@ export const QuestOrb3D: React.FC<QuestOrb3DProps> = ({
       coreMat.dispose();
       shellGeom.dispose();
       shellMat.dispose();
+      if (ringGeom) ringGeom.dispose();
+      if (ringMat) ringMat.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }

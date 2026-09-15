@@ -76,7 +76,7 @@ export const TruceModal: React.FC<TruceModalProps> = ({
                 [ PROTOCOLO DE PRESERVACIÓN ]
               </span>
               <h3 className="text-white text-lg font-black tracking-wide font-display">
-                Escudo de Tregua del Monarca
+                Escudo de Tregua y Reposo
               </h3>
             </div>
           </div>
@@ -108,7 +108,7 @@ export const TruceModal: React.FC<TruceModalProps> = ({
                 <strong className="text-white">Motivo:</strong> {truceReason || 'Reposo justificado'}
               </p>
               <p className="text-[11px] text-slate-400 mt-2">
-                Tus rachas de misiones y tus puntos de salud (HP) están protegidos. El Sistema no aplicará penalizaciones durante este periodo.
+                Tus rachas de hábitos y tus puntos de salud (HP) están protegidos. El Sistema no aplicará deducciones durante este periodo.
               </p>
             </div>
 
