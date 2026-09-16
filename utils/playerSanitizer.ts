@@ -1,5 +1,5 @@
-import { Player, Rank, ForbiddenPact } from '../types';
-import { INITIAL_PLAYER, INITIAL_SHADOW_ARMY, INITIAL_ACTIVITY_HISTORY, INITIAL_FORBIDDEN_PACTS } from '../constants';
+import { Player, Rank, ForbiddenPact, RealLifeReward } from '../types';
+import { INITIAL_PLAYER, INITIAL_SHADOW_ARMY, INITIAL_ACTIVITY_HISTORY, INITIAL_FORBIDDEN_PACTS, INITIAL_REAL_LIFE_REWARDS } from '../constants';
 
 /**
  * Ensures player data is 100% structurally complete and valid,
@@ -104,6 +104,18 @@ export function sanitizePlayerData(raw: any): Player {
       for (const initPact of INITIAL_FORBIDDEN_PACTS) {
         if (!merged.some((p) => p.id === initPact.id)) {
           merged.push(initPact);
+        }
+      }
+      return merged;
+    })(),
+    customRewards: (() => {
+      const baseList: RealLifeReward[] = Array.isArray(raw.customRewards) && raw.customRewards.length > 0
+        ? raw.customRewards
+        : (Array.isArray(raw.custom_rewards) && raw.custom_rewards.length > 0 ? raw.custom_rewards : INITIAL_REAL_LIFE_REWARDS);
+      const merged = [...baseList];
+      for (const initReward of INITIAL_REAL_LIFE_REWARDS) {
+        if (!merged.some((r) => r.id === initReward.id)) {
+          merged.push(initReward);
         }
       }
       return merged;

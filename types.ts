@@ -323,12 +323,15 @@ export interface ForbiddenPact {
   customVoicePrompt?: string;
 }
 
+export type RewardCategory = 'leisure' | 'food' | 'wellness' | 'growth' | 'experience';
+
 export interface RealLifeReward {
   id: string;
   title: string;
   description: string;
   costGold: number;
   icon: string;
+  category?: RewardCategory;
   timesClaimed: number;
   lastClaimedAt?: string | null;
 }

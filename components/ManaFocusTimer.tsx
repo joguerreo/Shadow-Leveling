@@ -397,9 +397,10 @@ export const ManaFocusTimer: React.FC<ManaFocusTimerProps> = ({
 
         {/* Primary Play / Pause Toggle Button */}
         <button
-          onClick={() => {
+          onClick={async () => {
             triggerHaptic('impact');
-            sound.playBeep(isRunning ? 480 : 640, 0.04);
+            await sound.resumeContext();
+            sound.playBeep(isRunning ? 480 : 640, 0.09);
             onTogglePlay();
           }}
           className={`flex-1 py-3 px-4 rounded-xl font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 ${
@@ -418,7 +419,7 @@ export const ManaFocusTimer: React.FC<ManaFocusTimerProps> = ({
         <button
           onClick={() => {
             triggerHaptic('light');
-            sound.playBeep(380, 0.03);
+            sound.playBeep(380, 0.08);
             onReset();
           }}
           className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5 transition-all active:scale-95"
@@ -432,7 +433,7 @@ export const ManaFocusTimer: React.FC<ManaFocusTimerProps> = ({
           <button
             onClick={() => {
               triggerHaptic('light');
-              sound.playBeep(580, 0.03);
+              sound.playBeep(580, 0.08);
               onAdjustTime(5);
             }}
             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5 transition-all active:scale-95 text-xs font-mono font-bold"
@@ -480,9 +481,10 @@ export const ManaFocusTimer: React.FC<ManaFocusTimerProps> = ({
             ].map((amb) => (
               <button
                 key={amb.id}
-                onClick={() => {
+                onClick={async () => {
                   triggerHaptic('light');
-                  sound.playBeep(520, 0.02);
+                  await sound.resumeContext();
+                  sound.playBeep(520, 0.08);
                   onAmbientChange(amb.id as AmbientSoundMode);
                 }}
                 className={`p-2 rounded-xl text-[10px] font-mono font-bold flex flex-col items-center gap-1 transition-all ${

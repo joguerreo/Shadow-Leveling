@@ -363,6 +363,178 @@ Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin markdow
   }
 });
 
+// API: AI Real Life Reward Generator (categorized, non-fantasy, actionable rewards)
+app.post('/api/ai/generate-reward', async (req, res) => {
+  try {
+    const { hunterName, category, preferencePrompt, budgetLevel, currentGold } = req.body;
+    const cat = category || 'leisure';
+
+    const categoryMap: Record<string, { label: string; icon: string; defaultCost: number }> = {
+      leisure: { label: 'Ocio & Entretenimiento (videojuegos, streaming, cine, tiempo libre)', icon: 'sports_esports', defaultCost: 500 },
+      food: { label: 'Gastronomía & Antojos (comida gourmet, café de especialidad, cena libre, delivery)', icon: 'restaurant', defaultCost: 800 },
+      wellness: { label: 'Bienestar & Descanso (spa, siesta reparadora, masaje, relajación, autocuidado)', icon: 'spa', defaultCost: 600 },
+      growth: { label: 'Crecimiento & Equipo Personal (comprar libro, accesorio tecnológico, ropa deportiva, gadget)', icon: 'menu_book', defaultCost: 1200 },
+      experience: { label: 'Experiencias & Desconexión (escapada de fin de semana, senderismo, concierto, aventura)', icon: 'terrain', defaultCost: 2000 },
+    };
+
+    const targetCatInfo = categoryMap[cat] || categoryMap.leisure;
+    const budgetMultiplier = budgetLevel === 'high' ? 2.2 : budgetLevel === 'low' ? 0.6 : 1.0;
+    const estimatedCost = Math.round(targetCatInfo.defaultCost * budgetMultiplier);
+
+    let generatedReward: any = null;
+
+    // 1. Try Gemini API first if GEMINI_API_KEY is available
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const geminiPrompt = `Actúa como la tienda oficial del SISTEMA de recompensas de la vida real para cazadores de disciplina.
+Genera UNA recompensa de la VIDA REAL para el cazador ${hunterName || 'Sung Jin-Woo'} (Oro actual: ${currentGold || 1000}).
+IMPORTANTE: NO USES FANTASÍA NI ANIME (NO espadas, NO pociones, NO armaduras mágicas, NO dragones).
+Debe ser un premio 100% tangible y realizable en el mundo real que el usuario pueda canjear con su esfuerzo diario.
+Categoría: ${targetCatInfo.label}.
+Idea o preferencia del usuario: "${preferencePrompt || 'Sorpréndeme con algo motivador y merecido'}".
+Costo en Oro sugerido: alrededor de ${estimatedCost} de oro (entre 300 y 4500 según la magnitud).
+
+Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
+{
+  "title": "Nombre conciso y atractivo de la recompensa",
+  "description": "Explicación clara del premio, por qué es merecido y cómo disfrutarlo sin culpa.",
+  "costGold": ${estimatedCost},
+  "icon": "sports_esports" (o restaurant, movie, tv, local_cafe, bed, spa, self_improvement, menu_book, devices, checkroom, nature_people, explore, terrain),
+  "category": "${cat}",
+  "systemQuote": "Frase breve y solemne del Sistema recordando que la disciplina ganada otorga el derecho al disfrute pleno."
+}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: geminiPrompt,
+          config: {
+            responseMimeType: 'application/json',
+          },
+        });
+
+        if (response.text) {
+          generatedReward = JSON.parse(response.text);
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini generate-reward fallback:', geminiErr);
+      }
+    }
+
+    // 2. Try NVIDIA OpenAI client if Gemini was not available or had an issue
+    if (!generatedReward) {
+      try {
+        const client = getNvidiaClient();
+        const prompt = `Actúa como el SISTEMA de Recompensas de la vida real de Solo Leveling.
+Genera una recompensa de la VIDA REAL (sin elementos de fantasía, sin espadas ni pociones).
+Categoría: ${targetCatInfo.label}.
+Petición o idea del usuario: "${preferencePrompt || 'Recompensa motivadora'}".
+Presupuesto aproximado en oro: ${estimatedCost}.
+
+Responde ÚNICAMENTE con un JSON válido:
+{
+  "title": "Título conciso de la recompensa",
+  "description": "Descripción motivadora y clara del premio merecido de la vida real.",
+  "costGold": ${estimatedCost},
+  "icon": "${targetCatInfo.icon}",
+  "category": "${cat}",
+  "systemQuote": "Mensaje solemne del Sistema certificando el mérito de este logro."
+}`;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('AI generation timeout')), 4500)
+        );
+
+        const completionPromise = client.chat.completions.create({
+          model: 'nvidia/nemotron-3-ultra-550b-a55b',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.75,
+          max_tokens: 1024,
+        });
+
+        const completion = (await Promise.race([completionPromise, timeoutPromise])) as any;
+        const content = completion.choices[0]?.message?.content || '';
+        let clean = content.trim().replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+        generatedReward = JSON.parse(clean);
+      } catch (nvidiaErr) {
+        console.warn('NVIDIA generate-reward fallback:', nvidiaErr);
+      }
+    }
+
+    // 3. Fallback templates if AI services were unreachable
+    if (!generatedReward || !generatedReward.title) {
+      const fallbackLibrary: Record<string, { title: string; desc: string; cost: number; icon: string }> = {
+        leisure: {
+          title: preferencePrompt ? `Sesión Especial: ${preferencePrompt}` : 'Tarde Libre de Videojuegos o Películas',
+          desc: 'Tiempo de ocio puro sin culpa. Has conquistado tus metas y te corresponde recargar energías disfrutando a tu gusto.',
+          cost: estimatedCost,
+          icon: 'sports_esports',
+        },
+        food: {
+          title: preferencePrompt ? `Antojo Especial: ${preferencePrompt}` : 'Almuerzo / Cena Favorita Libre',
+          desc: 'Una comida en tu lugar favorito o tu platillo preferido sin contar calorías ni restricciones.',
+          cost: estimatedCost,
+          icon: 'restaurant',
+        },
+        wellness: {
+          title: preferencePrompt ? `Descanso: ${preferencePrompt}` : 'Sesión de Descanso Profundo & Cuidado Personal',
+          desc: 'Ducha relajante, siesta regenerativa o tiempo a solas para calmar tu mente y renovar tu cuerpo.',
+          cost: estimatedCost,
+          icon: 'spa',
+        },
+        growth: {
+          title: preferencePrompt ? `Compra Útil: ${preferencePrompt}` : 'Inversión en Aprendizaje o Accesorio Personal',
+          desc: 'Adquirir un libro, herramienta o accesorio que impulse tu desarrollo personal o mejore tu entorno.',
+          cost: estimatedCost,
+          icon: 'menu_book',
+        },
+        experience: {
+          title: preferencePrompt ? `Experiencia: ${preferencePrompt}` : 'Salida de Exploración / Naturaleza / Aventura',
+          desc: 'Un paseo diferente al aire libre, visita a un lugar nuevo o desconexión en la naturaleza.',
+          cost: estimatedCost,
+          icon: 'terrain',
+        },
+      };
+
+      const fb = fallbackLibrary[cat] || fallbackLibrary.leisure;
+      generatedReward = {
+        title: fb.title,
+        description: fb.desc,
+        costGold: fb.cost,
+        icon: fb.icon,
+        category: cat,
+        systemQuote: 'El Sistema certifica que el esfuerzo constante merece una recompensa a la altura de tu entrega.',
+      };
+    }
+
+    return res.json({
+      success: true,
+      reward: {
+        title: generatedReward.title,
+        description: generatedReward.description,
+        costGold: Number(generatedReward.costGold) || estimatedCost,
+        icon: generatedReward.icon || targetCatInfo.icon,
+        category: cat,
+        systemQuote: generatedReward.systemQuote || 'El Sistema certifica tu derecho a disfrutar este logro.',
+      },
+    });
+  } catch (err: any) {
+    console.error('Error generating reward:', err);
+    return res.status(200).json({
+      success: true,
+      reward: {
+        title: 'Pausa Libre Reconfortante',
+        description: 'Una recompensa personal para desconectar y celebrar tu avance diario.',
+        costGold: 500,
+        icon: 'celebration',
+        category: 'leisure',
+        systemQuote: 'El verdadero poder radica en saber cuándo acelerar y cuándo disfrutar del camino.',
+      },
+      fallback: true,
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

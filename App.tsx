@@ -1769,6 +1769,9 @@ const App: React.FC = () => {
           onOpenProfileModal={() => setIsProfileModalOpen(true)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onToggleSound={toggleSound}
+          onClaimRealReward={handleClaimRealReward}
+          onAddRealReward={handleAddRealReward}
+          onDeleteRealReward={handleDeleteRealReward}
         />
       </main>
 

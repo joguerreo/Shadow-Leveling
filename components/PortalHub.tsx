@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Player, Quest, ForbiddenPact, QuestCategory } from '../types';
+import { Player, Quest, ForbiddenPact, QuestCategory, RealLifeReward, RewardCategory } from '../types';
 import { sound } from '../utils/sound';
 import { FocusCadenceOrb3D } from './three/FocusCadenceOrb3D';
 import { BiometricCoreOrb3D } from './three/BiometricCoreOrb3D';
@@ -10,6 +10,7 @@ import { QuestOrb3D } from './three/QuestOrb3D';
 import { PactOrb3D } from './three/PactOrb3D';
 import { QuestSpatialCarousel3D } from './three/QuestSpatialCarousel3D';
 import { PactSpatialCarousel3D } from './three/PactSpatialCarousel3D';
+import { RealRewardsShop } from './RealRewardsShop';
 
 interface PortalHubProps {
   player: Player;
@@ -27,9 +28,12 @@ interface PortalHubProps {
   onOpenProfileModal?: () => void;
   onOpenAuth?: () => void;
   onToggleSound?: () => void;
+  onClaimRealReward?: (reward: RealLifeReward) => void;
+  onAddRealReward?: (reward: Omit<RealLifeReward, 'id' | 'timesClaimed' | 'lastClaimedAt'>) => void;
+  onDeleteRealReward?: (rewardId: string) => void;
 }
 
-type SceneType = 'hub' | 'gate' | 'stats' | 'pacts' | 'focus';
+type SceneType = 'hub' | 'gate' | 'stats' | 'pacts' | 'focus' | 'shop';
 
 export const PortalHub: React.FC<PortalHubProps> = ({
   player,
@@ -47,6 +51,9 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   onOpenProfileModal,
   onOpenAuth,
   onToggleSound,
+  onClaimRealReward,
+  onAddRealReward,
+  onDeleteRealReward,
 }) => {
   const [activeScene, setActiveScene] = useState<SceneType>('hub');
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
@@ -102,7 +109,8 @@ export const PortalHub: React.FC<PortalHubProps> = ({
   const [focusInitialSeconds, setFocusInitialSeconds] = useState<number>(25 * 60);
   const [isFocusRunning, setIsFocusRunning] = useState<boolean>(false);
   const [ambientSoundMode, setAmbientSoundMode] = useState<'alpha' | 'rain' | 'noise' | 'off'>('alpha');
-  const [ambientVolume, setAmbientVolume] = useState<number>(0.12);
+  const [ambientVolume, setAmbientVolume] = useState<number>(0.50);
+  const [breathChimesEnabled, setBreathChimesEnabled] = useState<boolean>(true);
   const [isAmbientPlaying, setIsAmbientPlaying] = useState<boolean>(false);
   const [focusVisualMode, setFocusVisualMode] = useState<'3d' | 'classic'>('3d');
   const [statsVisualMode, setStatsVisualMode] = useState<'3d' | '2d'>('3d');
@@ -192,7 +200,18 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     let interval: NodeJS.Timeout | null = null;
     if (isFocusRunning && focusSeconds > 0) {
       interval = setInterval(() => {
-        setFocusSeconds((prev) => prev - 1);
+        setFocusSeconds((prev) => {
+          const nextVal = prev - 1;
+          const elapsed = Math.max(0, focusInitialSeconds - nextVal);
+          const cycle = elapsed % 16;
+          if (breathChimesEnabled) {
+            if (cycle === 0) sound.playBreathCue('inhale', ambientVolume);
+            else if (cycle === 4) sound.playBreathCue('hold-in', ambientVolume);
+            else if (cycle === 8) sound.playBreathCue('exhale', ambientVolume);
+            else if (cycle === 12) sound.playBreathCue('hold-out', ambientVolume);
+          }
+          return nextVal;
+        });
       }, 1000);
     } else if (isFocusRunning && focusSeconds === 0) {
       setIsFocusRunning(false);
@@ -205,10 +224,11 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isFocusRunning, focusSeconds]);
+  }, [isFocusRunning, focusSeconds, focusInitialSeconds, breathChimesEnabled, ambientVolume]);
 
   // Focus Audio Handlers
-  const handleToggleFocusAmbient = (mode?: 'alpha' | 'rain' | 'noise' | 'off') => {
+  const handleToggleFocusAmbient = async (mode?: 'alpha' | 'rain' | 'noise' | 'off') => {
+    await sound.resumeContext();
     const nextMode = mode !== undefined ? mode : ambientSoundMode;
     if (mode !== undefined) {
       setAmbientSoundMode(mode);
@@ -224,26 +244,25 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       sound.stopAmbientFocus();
       setIsAmbientPlaying(false);
     } else {
-      sound.startAmbientFocus(nextMode, ambientVolume);
+      await sound.startAmbientFocus(nextMode, ambientVolume);
       setIsAmbientPlaying(true);
     }
   };
 
   const handleVolumeChange = (vol: number) => {
     setAmbientVolume(vol);
-    if (isAmbientPlaying && ambientSoundMode !== 'off') {
-      sound.startAmbientFocus(ambientSoundMode, vol);
-    }
+    sound.setAmbientVolume(vol);
   };
 
-  const handleToggleFocusTimer = () => {
+  const handleToggleFocusTimer = async () => {
+    await sound.resumeContext();
     const nextState = !isFocusRunning;
-    sound.playBeep(nextState ? 660 : 440, 0.05);
+    sound.playBeep(nextState ? 660 : 440, 0.1);
     setIsFocusRunning(nextState);
 
     if (nextState) {
       if (ambientSoundMode !== 'off') {
-        sound.startAmbientFocus(ambientSoundMode, ambientVolume);
+        await sound.startAmbientFocus(ambientSoundMode, ambientVolume);
         setIsAmbientPlaying(true);
       }
       sound.speakMotivation('Iniciando sesión de enfoque profundo.');
@@ -667,14 +686,14 @@ export const PortalHub: React.FC<PortalHubProps> = ({
     { name: 'ENFOQUE', code: 'wis', val: player.attributes.wis.value, color: '#c084fc', r: 34, icon: 'visibility' },
   ];
 
-  // Radial "Star" Menu Items - Orden Equitativo y Simétrico (Paso exacto de 40° centrado en 270°)
+  // Radial "Star" Menu Items - 5 Estaciones Simétricas (Paso de 37.5° centrado exactamente en 270°)
   const radialMenuItems = [
     {
       id: 'hub',
       label: 'OBJETIVOS',
       icon: 'task_alt',
       scene: 'hub' as SceneType,
-      angle: 210, // Superior Izquierda (-60° desde 270°)
+      angle: 195, // Superior Izquierda (-75° desde 270°)
       color: '#38bdf8',
     },
     {
@@ -682,15 +701,23 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       label: 'ATRIBUTOS',
       icon: 'insights',
       scene: 'stats' as SceneType,
-      angle: 250, // Superior Centro-Izquierda (-20° desde 270°)
+      angle: 232.5, // Superior Centro-Izquierda (-37.5° desde 270°)
       color: '#c084fc',
+    },
+    {
+      id: 'shop',
+      label: 'RECOMPENSAS',
+      icon: 'storefront',
+      scene: 'shop' as SceneType,
+      angle: 270, // Cénit Superior Exacto (0° desviación)
+      color: '#fbbf24',
     },
     {
       id: 'pacts',
       label: 'COMPROMISOS',
       icon: 'verified_user',
       scene: 'pacts' as SceneType,
-      angle: 290, // Superior Centro-Derecha (+20° desde 270°)
+      angle: 307.5, // Superior Centro-Derecha (+37.5° desde 270°)
       color: '#ff5e5e',
     },
     {
@@ -698,7 +725,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
       label: 'ENFOQUE',
       icon: 'timer',
       scene: 'focus' as SceneType,
-      angle: 330, // Superior Derecha (+60° desde 270°)
+      angle: 345, // Superior Derecha (+75° desde 270°)
       color: '#34d399',
     },
   ];
@@ -1861,7 +1888,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                     setIsAmbientPlaying(false);
                     setFocusInitialSeconds(mins * 60);
                     setFocusSeconds(mins * 60);
-                    sound.playBeep(520, 0.03);
+                    sound.playBeep(520, 0.09);
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all ${
                     focusInitialSeconds === mins * 60
@@ -1915,77 +1942,126 @@ export const PortalHub: React.FC<PortalHubProps> = ({
             )}
 
             {/* ============================================================== */}
-            {/* AMBIENT AUDIO ENGINE CONTROLS (Restored & Enhanced)            */}
+            {/* AMBIENT AUDIO ENGINE CONTROLS (Mobile Optimized & Tested)      */}
             {/* ============================================================== */}
-            <div className="w-full max-w-sm bg-[#0c1322]/90 border border-[#1c2a45] rounded-2xl p-3 mb-5 backdrop-blur-md text-left">
-              <div className="flex items-center justify-between mb-2">
+            <div className="w-full max-w-sm bg-[#0c1322]/95 border border-[#1c2a45] rounded-2xl p-3.5 mb-5 backdrop-blur-md text-left shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm text-cyan-400 animate-pulse">
+                  <span className={`material-symbols-outlined text-sm ${isAmbientPlaying ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`}>
                     {isAmbientPlaying ? 'graphic_eq' : 'headphones'}
                   </span>
                   <span className="text-xs font-mono font-bold text-slate-200">
-                    Audio Ambiental de Concentración
+                    Audio Ambiental
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handleToggleFocusAmbient()}
-                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border transition-all flex items-center gap-1 ${
-                    isAmbientPlaying
-                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                      : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
-                  }`}
-                  title="Alternar reproducción de audio"
-                >
-                  <span className="material-symbols-outlined text-[11px]">
-                    {isAmbientPlaying ? 'volume_up' : 'volume_off'}
-                  </span>
-                  <span>{isAmbientPlaying ? 'Activo' : 'Pausado'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Quick test button for mobile phones */}
+                  <button
+                    onClick={async () => {
+                      await sound.resumeContext();
+                      sound.playBeep(528, 0.12);
+                      sound.testFocusAudio(ambientSoundMode !== 'off' ? ambientSoundMode : 'alpha');
+                      showToast('Probando audio en altavoces...');
+                    }}
+                    className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-300 flex items-center gap-1 active:scale-95 transition-all"
+                    title="Emitir prueba de audio para verificar altavoz del móvil"
+                  >
+                    <span className="material-symbols-outlined text-[11px]">volume_up</span>
+                    <span>Probar</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleFocusAmbient()}
+                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border transition-all flex items-center gap-1 active:scale-95 ${
+                      isAmbientPlaying
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                        : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                    title="Alternar reproducción de audio"
+                  >
+                    <span className="material-symbols-outlined text-[11px]">
+                      {isAmbientPlaying ? 'play_arrow' : 'pause'}
+                    </span>
+                    <span>{isAmbientPlaying ? 'Activo' : 'Pausado'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Sound Mode Options */}
-              <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[
                   { id: 'alpha', label: 'Alpha 432Hz', icon: 'psychology' },
                   { id: 'rain', label: 'Lluvia Zen', icon: 'rainy' },
-                  { id: 'noise', label: 'Ruido Blanco', icon: 'air' },
+                  { id: 'noise', label: 'Ruido Rosa', icon: 'air' },
                   { id: 'off', label: 'Silencio', icon: 'volume_off' },
                 ].map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => {
-                      sound.playBeep(450, 0.03);
+                    onClick={async () => {
+                      await sound.resumeContext();
+                      sound.playBeep(480, 0.09);
                       handleToggleFocusAmbient(s.id as any);
                     }}
-                    className={`p-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border text-center transition-all ${
+                    className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 border text-center transition-all active:scale-95 ${
                       ambientSoundMode === s.id
-                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                        ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 font-bold shadow-[0_0_12px_rgba(6,182,212,0.25)]'
                         : 'bg-[#070b14] border-[#162238] text-slate-400 hover:text-white hover:border-slate-600'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-sm">{s.icon}</span>
+                    <span className="material-symbols-outlined text-base">{s.icon}</span>
                     <span className="text-[9px] font-mono leading-tight">{s.label}</span>
                   </button>
                 ))}
               </div>
 
               {/* Volume Slider */}
-              <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-slate-400">
-                <span className="material-symbols-outlined text-xs">volume_down</span>
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">volume_down</span>
+                    <span>Intensidad de Sonido</span>
+                  </span>
+                  <span className="font-bold text-cyan-300">
+                    {Math.round(ambientVolume * 100)}%
+                  </span>
+                </div>
                 <input
                   type="range"
-                  min="0.02"
-                  max="0.30"
-                  step="0.01"
+                  min="0.05"
+                  max="1.00"
+                  step="0.05"
                   value={ambientVolume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="flex-1 accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
+                  className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
                   title="Ajustar volumen del audio ambiental"
                 />
-                <span className="w-8 text-right font-mono text-[10px] text-slate-300">
-                  {Math.round((ambientVolume / 0.30) * 100)}%
-                </span>
+              </div>
+
+              {/* Breath Cadence Bells Toggle */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#1c2a45]/60 text-[11px] font-mono">
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <span className="material-symbols-outlined text-xs text-purple-400">notifications_active</span>
+                  <span>Campanas de Respiración (4-4-4-4)</span>
+                </div>
+                <button
+                  onClick={() => {
+                    sound.playBeep(breathChimesEnabled ? 380 : 580, 0.08);
+                    setBreathChimesEnabled(!breathChimesEnabled);
+                    if (!breathChimesEnabled) {
+                      sound.playBreathCue('inhale', ambientVolume);
+                      showToast('Campanas de respiración activadas');
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all active:scale-95 ${
+                    breathChimesEnabled
+                      ? 'bg-purple-500/20 border-purple-500/60 text-purple-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-400'
+                  }`}
+                  title="Activar o silenciar campanas de guía de respiración"
+                >
+                  {breathChimesEnabled ? 'Activas' : 'Silenciadas'}
+                </button>
               </div>
             </div>
 
@@ -2011,7 +2087,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
                   sound.stopAmbientFocus();
                   setIsAmbientPlaying(false);
                   setFocusSeconds(focusInitialSeconds);
-                  sound.playBeep(320, 0.04);
+                  sound.playBeep(320, 0.09);
                 }}
                 className="px-4 py-2.5 rounded-xl bg-[#0c1322] border border-[#1c2a45] hover:border-slate-500 text-slate-300 font-mono text-xs font-bold active:scale-95 flex items-center gap-1"
                 title="Reiniciar temporizador"
@@ -2023,7 +2099,7 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               <button
                 onClick={() => {
                   setFocusSeconds((prev) => prev + 300);
-                  sound.playBeep(520, 0.03);
+                  sound.playBeep(520, 0.09);
                   showToast('+5 minutos añadidos');
                 }}
                 className="px-3 py-2.5 rounded-xl bg-[#0c1322] border border-[#1c2a45] hover:border-slate-500 text-cyan-400 font-mono text-xs font-bold active:scale-95"
@@ -2033,6 +2109,31 @@ export const PortalHub: React.FC<PortalHubProps> = ({
               </button>
             </div>
           </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* SCENE 6: REAL REWARDS SHOP (TIENDA DE RECOMPENSAS DE VIDA REAL)      */}
+        {/* ==================================================================== */}
+        {activeScene === 'shop' && (
+          <RealRewardsShop
+            player={player}
+            onBackToHub={() => triggerWipeTransition('hub')}
+            onClaimReward={(reward) => {
+              if (onClaimRealReward) {
+                onClaimRealReward(reward);
+              }
+            }}
+            onAddReward={(rewardData) => {
+              if (onAddRealReward) {
+                onAddRealReward(rewardData);
+              }
+            }}
+            onDeleteReward={(rewardId) => {
+              if (onDeleteRealReward) {
+                onDeleteRealReward(rewardId);
+              }
+            }}
+          />
         )}
       </main>
 

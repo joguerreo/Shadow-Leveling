@@ -151,6 +151,7 @@ export async function syncHunterToFirestore(userId: string, player: Player): Pro
       streak: Number(player.streakDays) || 0,
       lastActiveDate: player.lastActiveDate || '',
       forbiddenPacts: player.forbiddenPacts || [],
+      customRewards: player.customRewards || [],
       attributes: player.attributes || {},
       inventory: player.inventory || [],
       equipped: player.equipped || {},

@@ -10,21 +10,45 @@ class SoundManager {
     if (typeof window !== 'undefined') {
       const unlockHandler = () => {
         this.unlockAudio();
-        ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'].forEach((evt) => {
-          window.removeEventListener(evt, unlockHandler);
-          document.removeEventListener(evt, unlockHandler);
-        });
+        if (this.ctx && this.ctx.state === 'running') {
+          ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'].forEach((evt) => {
+            window.removeEventListener(evt, unlockHandler);
+            document.removeEventListener(evt, unlockHandler);
+          });
+        }
       };
 
       ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'].forEach((evt) => {
         window.addEventListener(evt, unlockHandler, { passive: true });
         document.addEventListener(evt, unlockHandler, { passive: true });
       });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.ctx && this.ctx.state === 'suspended') {
+          this.isUnlocked = false;
+        }
+      });
     }
   }
 
+  public async resumeContext(): Promise<AudioContext | null> {
+    if (typeof window === 'undefined') return null;
+    const ctx = this.getContext();
+    if (!ctx) return null;
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch {
+        // Fallback retry
+      }
+    }
+    if (ctx.state === 'running') {
+      this.isUnlocked = true;
+    }
+    return ctx;
+  }
+
   public unlockAudio() {
-    if (this.isUnlocked && this.ctx && this.ctx.state === 'running') return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -37,7 +61,9 @@ class SoundManager {
       source.buffer = buffer;
       source.connect(ctx.destination);
       source.start(0);
-      this.isUnlocked = true;
+      if (ctx.state === 'running') {
+        this.isUnlocked = true;
+      }
     } catch {
       // Ignore
     }
@@ -57,27 +83,28 @@ class SoundManager {
     return this.ctx;
   }
 
-  public playBeep(freq = 600, duration = 0.08, type: OscillatorType = 'sine') {
+  public playBeep(freq = 600, duration = 0.09, type: OscillatorType = 'sine') {
     if (!this.enabled) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
+      const effectiveDuration = Math.max(0.08, duration);
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      gain.gain.setValueAtTime(0.28, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + effectiveDuration);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + duration);
+      osc.stop(ctx.currentTime + effectiveDuration);
     } catch {
       // Ignore audio failure if restricted by browser
     }
@@ -1032,10 +1059,15 @@ class SoundManager {
     }
   }
 
-  // Ambient Focus Generator
+  // Ambient Focus Generator Nodes & State
   private ambientOscL: OscillatorNode | null = null;
   private ambientOscR: OscillatorNode | null = null;
+  private ambientSubOsc: OscillatorNode | null = null;
+  private ambientDroneOsc: OscillatorNode | null = null;
+  private ambientPannerL: StereoPannerNode | null = null;
+  private ambientPannerR: StereoPannerNode | null = null;
   private ambientGain: GainNode | null = null;
+  private ambientLfo: OscillatorNode | null = null;
   private noiseSource: AudioBufferSourceNode | null = null;
   public isAmbientPlaying: boolean = false;
   public currentAmbientMode: 'alpha' | 'rain' | 'noise' | 'off' = 'off';
@@ -1046,21 +1078,29 @@ class SoundManager {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 0.9;
-      utterance.lang = lang;
-
-      const voices = window.speechSynthesis.getVoices();
-      const targetVoice = voices.find(
-        (v) => v.lang.startsWith(lang.split('-')[0]) || v.name.includes('Google') || v.name.includes('Natural')
-      );
-      if (targetVoice) {
-        utterance.voice = targetVoice;
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
       }
+      setTimeout(() => {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1.02;
+          utterance.pitch = 0.95;
+          utterance.lang = lang;
 
-      window.speechSynthesis.speak(utterance);
+          const voices = window.speechSynthesis.getVoices();
+          const targetVoice = voices.find(
+            (v) => v.lang.startsWith(lang.split('-')[0]) || v.name.includes('Google') || v.name.includes('Natural')
+          );
+          if (targetVoice) {
+            utterance.voice = targetVoice;
+          }
+
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          // Ignore
+        }
+      }, 50);
     } catch {
       // Ignore if speech synthesis blocked or unavailable
     }
@@ -1078,20 +1118,47 @@ class SoundManager {
     this.stopAmbientFocus();
   }
 
-  public startAmbientFocus(mode: 'alpha' | 'rain' | 'noise', volume = 0.08) {
+  public setAmbientVolume(volume: number) {
+    if (this.ambientGain && this.ctx) {
+      try {
+        const safe = Math.max(0.01, Math.min(1.0, volume));
+        this.ambientGain.gain.linearRampToValueAtTime(safe, this.ctx.currentTime + 0.05);
+      } catch (_) {}
+    }
+  }
+
+  /**
+   * Starts ambient focus audio synthesized with mobile speakers & headphones in mind.
+   * Uses master dynamics compression to ensure audible presence without clipping on phone speakers.
+   */
+  public async startAmbientFocus(mode: 'alpha' | 'rain' | 'noise', volume = 0.5) {
     this.stopAmbientFocus();
     if (!this.enabled) return;
 
     try {
-      const ctx = this.getContext();
+      const ctx = await this.resumeContext();
       if (!ctx) return;
 
+      const safeVolume = Math.max(0.05, Math.min(1.0, volume));
+
+      // Master dynamics compressor to ensure optimal loudness on mobile speakers without clipping
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-14, ctx.currentTime);
+      compressor.knee.setValueAtTime(15, ctx.currentTime);
+      compressor.ratio.setValueAtTime(3.5, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.005, ctx.currentTime);
+      compressor.release.setValueAtTime(0.05, ctx.currentTime);
+      compressor.connect(ctx.destination);
+
       this.ambientGain = ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(volume, ctx.currentTime);
-      this.ambientGain.connect(ctx.destination);
+      // Smooth fade-in over 0.2s to prevent click
+      this.ambientGain.gain.setValueAtTime(0.001, ctx.currentTime);
+      this.ambientGain.gain.linearRampToValueAtTime(safeVolume, ctx.currentTime + 0.2);
+      this.ambientGain.connect(compressor);
 
       if (mode === 'alpha') {
-        // Binaural beat: 432Hz and 442Hz (10Hz Alpha focus wave)
+        // Mode 1: Alpha 432Hz Binaural Beat + Solfeggio Harmonic Bed
+        // Left ear: 432 Hz, Right ear: 442 Hz -> 10Hz Alpha brainwave entrainment
         this.ambientOscL = ctx.createOscillator();
         this.ambientOscR = ctx.createOscillator();
         this.ambientOscL.type = 'sine';
@@ -1099,42 +1166,174 @@ class SoundManager {
         this.ambientOscL.frequency.setValueAtTime(432, ctx.currentTime);
         this.ambientOscR.frequency.setValueAtTime(442, ctx.currentTime);
 
-        this.ambientOscL.connect(this.ambientGain);
-        this.ambientOscR.connect(this.ambientGain);
+        // Check if StereoPanner is supported
+        if (typeof ctx.createStereoPanner === 'function') {
+          this.ambientPannerL = ctx.createStereoPanner();
+          this.ambientPannerR = ctx.createStereoPanner();
+          this.ambientPannerL.pan.setValueAtTime(-0.85, ctx.currentTime);
+          this.ambientPannerR.pan.setValueAtTime(0.85, ctx.currentTime);
+          this.ambientOscL.connect(this.ambientPannerL);
+          this.ambientOscR.connect(this.ambientPannerR);
+          this.ambientPannerL.connect(this.ambientGain);
+          this.ambientPannerR.connect(this.ambientGain);
+        } else {
+          this.ambientOscL.connect(this.ambientGain);
+          this.ambientOscR.connect(this.ambientGain);
+        }
+
+        // Harmonic Foundation (crucial for mobile phone speakers):
+        // 216Hz warm filtered sub-tone + 528Hz Solfeggio tone for rich, warm body on phone speakers
+        this.ambientSubOsc = ctx.createOscillator();
+        this.ambientSubOsc.type = 'triangle';
+        this.ambientSubOsc.frequency.setValueAtTime(216, ctx.currentTime);
+
+        const subFilter = ctx.createBiquadFilter();
+        subFilter.type = 'lowpass';
+        subFilter.frequency.setValueAtTime(420, ctx.currentTime);
+
+        const subGain = ctx.createGain();
+        subGain.gain.setValueAtTime(0.35, ctx.currentTime);
+
+        this.ambientSubOsc.connect(subFilter);
+        subFilter.connect(subGain);
+        subGain.connect(this.ambientGain);
+
+        this.ambientDroneOsc = ctx.createOscillator();
+        this.ambientDroneOsc.type = 'sine';
+        this.ambientDroneOsc.frequency.setValueAtTime(528, ctx.currentTime);
+
+        const droneGain = ctx.createGain();
+        droneGain.gain.setValueAtTime(0.18, ctx.currentTime);
+        this.ambientDroneOsc.connect(droneGain);
+        droneGain.connect(this.ambientGain);
 
         this.ambientOscL.start();
         this.ambientOscR.start();
-      } else {
-        // Synthesized noise buffer (rain / soothing white noise)
-        const bufferSize = ctx.sampleRate * 2;
-        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        let lastOut = 0.0;
+        this.ambientSubOsc.start();
+        this.ambientDroneOsc.start();
+      } else if (mode === 'rain') {
+        // Mode 2: Lluvia Zen (Multi-layer natural rain with soothing droplet resonance)
+        const sampleRate = ctx.sampleRate;
+        const bufferLen = sampleRate * 3; // 3-second seamless stereo loop
+        const rainBuffer = ctx.createBuffer(2, bufferLen, sampleRate);
+        const leftData = rainBuffer.getChannelData(0);
+        const rightData = rainBuffer.getChannelData(1);
 
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          if (mode === 'rain') {
-            // Brown/Pink filtered noise
-            output[i] = (lastOut + 0.02 * white) / 1.02;
-            lastOut = output[i];
-            output[i] *= 3.5;
-          } else {
-            output[i] = white * 0.15;
+        let b0L = 0, b1L = 0, b2L = 0;
+        let b0R = 0, b1R = 0, b2R = 0;
+
+        for (let i = 0; i < bufferLen; i++) {
+          const whiteL = Math.random() * 2 - 1;
+          const whiteR = Math.random() * 2 - 1;
+
+          // Pink/brown filter algorithm for water roar
+          b0L = 0.99765 * b0L + whiteL * 0.0990460;
+          b1L = 0.96300 * b1L + whiteL * 0.2965164;
+          b2L = 0.57000 * b2L + whiteL * 1.0526913;
+          let pinkL = b0L + b1L + b2L + whiteL * 0.1848;
+
+          b0R = 0.99765 * b0R + whiteR * 0.0990460;
+          b1R = 0.96300 * b1R + whiteR * 0.2965164;
+          b2R = 0.57000 * b2R + whiteR * 1.0526913;
+          let pinkR = b0R + b1R + b2R + whiteR * 0.1848;
+
+          // Stochastic raindrop spikes (patter texture)
+          if (Math.random() < 0.003) {
+            const drop = (Math.random() * 0.6 + 0.4) * (Math.random() > 0.5 ? 1 : -1);
+            pinkL += drop;
           }
+          if (Math.random() < 0.003) {
+            const drop = (Math.random() * 0.6 + 0.4) * (Math.random() > 0.5 ? 1 : -1);
+            pinkR += drop;
+          }
+
+          // Smooth loop crossfade at boundaries to prevent clicks
+          const fadeSamples = 2000;
+          let factor = 1.0;
+          if (i < fadeSamples) {
+            factor = i / fadeSamples;
+          } else if (i > bufferLen - fadeSamples) {
+            factor = (bufferLen - i) / fadeSamples;
+          }
+
+          leftData[i] = Math.max(-0.95, Math.min(0.95, pinkL * 0.18 * factor));
+          rightData[i] = Math.max(-0.95, Math.min(0.95, pinkR * 0.18 * factor));
+        }
+
+        this.noiseSource = ctx.createBufferSource();
+        this.noiseSource.buffer = rainBuffer;
+        this.noiseSource.loop = true;
+
+        // Dual filtering: Body (lowpass ~1800Hz) + Droplet sparkle (bandpass ~3400Hz)
+        const lowpass = ctx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.setValueAtTime(1800, ctx.currentTime);
+
+        const highRes = ctx.createBiquadFilter();
+        highRes.type = 'bandpass';
+        highRes.frequency.setValueAtTime(3200, ctx.currentTime);
+        highRes.Q.setValueAtTime(1.2, ctx.currentTime);
+
+        const highGain = ctx.createGain();
+        highGain.gain.setValueAtTime(0.4, ctx.currentTime);
+
+        this.noiseSource.connect(lowpass);
+        lowpass.connect(this.ambientGain);
+
+        this.noiseSource.connect(highRes);
+        highRes.connect(highGain);
+        highGain.connect(this.ambientGain);
+
+        this.noiseSource.start();
+      } else {
+        // Mode 3: Ruido Cósmico / Rosa Suave (Cosmic pink noise with gentle ocean swell)
+        const sampleRate = ctx.sampleRate;
+        const bufferLen = sampleRate * 3;
+        const noiseBuffer = ctx.createBuffer(2, bufferLen, sampleRate);
+        const leftData = noiseBuffer.getChannelData(0);
+        const rightData = noiseBuffer.getChannelData(1);
+
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferLen; i++) {
+          const wL = Math.random() * 2 - 1;
+          const wR = Math.random() * 2 - 1;
+
+          b0 = 0.99886 * b0 + wL * 0.0555179;
+          b1 = 0.99332 * b1 + wL * 0.0750759;
+          b2 = 0.96900 * b2 + wL * 0.1538520;
+          const pL = b0 + b1 + b2 + wL * 0.5362;
+
+          const pR = 0.99886 * b0 + wR * 0.0555179 + wR * 0.5362;
+
+          const fade = i < 2000 ? i / 2000 : i > bufferLen - 2000 ? (bufferLen - i) / 2000 : 1;
+          leftData[i] = Math.max(-0.95, Math.min(0.95, pL * 0.16 * fade));
+          rightData[i] = Math.max(-0.95, Math.min(0.95, pR * 0.16 * fade));
         }
 
         this.noiseSource = ctx.createBufferSource();
         this.noiseSource.buffer = noiseBuffer;
         this.noiseSource.loop = true;
 
-        // Low-pass filter for soothing tone
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(mode === 'rain' ? 800 : 1200, ctx.currentTime);
+        filter.frequency.setValueAtTime(2200, ctx.currentTime);
+
+        // Gentle LFO swell for ocean breathing effect
+        this.ambientLfo = ctx.createOscillator();
+        this.ambientLfo.type = 'sine';
+        this.ambientLfo.frequency.setValueAtTime(0.08, ctx.currentTime);
+
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.setValueAtTime(600, ctx.currentTime);
+
+        this.ambientLfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
 
         this.noiseSource.connect(filter);
         filter.connect(this.ambientGain);
+
         this.noiseSource.start();
+        this.ambientLfo.start();
       }
 
       this.isAmbientPlaying = true;
@@ -1146,30 +1345,121 @@ class SoundManager {
 
   public stopAmbientFocus() {
     try {
-      if (this.ambientOscL) {
-        this.ambientOscL.stop();
-        this.ambientOscL.disconnect();
-        this.ambientOscL = null;
+      if (this.ambientGain && this.ctx) {
+        this.ambientGain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
       }
-      if (this.ambientOscR) {
-        this.ambientOscR.stop();
-        this.ambientOscR.disconnect();
-        this.ambientOscR = null;
-      }
-      if (this.noiseSource) {
-        this.noiseSource.stop();
-        this.noiseSource.disconnect();
-        this.noiseSource = null;
-      }
-      if (this.ambientGain) {
-        this.ambientGain.disconnect();
-        this.ambientGain = null;
-      }
+      setTimeout(() => {
+        try {
+          if (this.ambientOscL) {
+            this.ambientOscL.stop();
+            this.ambientOscL.disconnect();
+            this.ambientOscL = null;
+          }
+          if (this.ambientOscR) {
+            this.ambientOscR.stop();
+            this.ambientOscR.disconnect();
+            this.ambientOscR = null;
+          }
+          if (this.ambientSubOsc) {
+            this.ambientSubOsc.stop();
+            this.ambientSubOsc.disconnect();
+            this.ambientSubOsc = null;
+          }
+          if (this.ambientDroneOsc) {
+            this.ambientDroneOsc.stop();
+            this.ambientDroneOsc.disconnect();
+            this.ambientDroneOsc = null;
+          }
+          if (this.ambientLfo) {
+            this.ambientLfo.stop();
+            this.ambientLfo.disconnect();
+            this.ambientLfo = null;
+          }
+          if (this.noiseSource) {
+            this.noiseSource.stop();
+            this.noiseSource.disconnect();
+            this.noiseSource = null;
+          }
+          if (this.ambientPannerL) {
+            this.ambientPannerL.disconnect();
+            this.ambientPannerL = null;
+          }
+          if (this.ambientPannerR) {
+            this.ambientPannerR.disconnect();
+            this.ambientPannerR = null;
+          }
+          if (this.ambientGain) {
+            this.ambientGain.disconnect();
+            this.ambientGain = null;
+          }
+        } catch (_) {}
+      }, 70);
     } catch {
       // Ignore
     }
     this.isAmbientPlaying = false;
     this.currentAmbientMode = 'off';
+  }
+
+  /**
+   * Plays a crystal singing bowl / zen bell cue for box breathing cadence
+   */
+  public playBreathCue(phase: 'inhale' | 'hold-in' | 'exhale' | 'hold-out', volume = 0.35) {
+    if (!this.enabled) return;
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+
+      if (phase === 'inhale') {
+        // Ascending harmonic sweep (528Hz -> 660Hz)
+        osc.frequency.setValueAtTime(528, now);
+        osc.frequency.exponentialRampToValueAtTime(660, now + 0.25);
+      } else if (phase === 'hold-in') {
+        // Steady crystal ping (660Hz)
+        osc.frequency.setValueAtTime(660, now);
+      } else if (phase === 'exhale') {
+        // Soothing release sweep (660Hz -> 432Hz)
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.exponentialRampToValueAtTime(432, now + 0.3);
+      } else {
+        // Grounded resting chime (432Hz)
+        osc.frequency.setValueAtTime(432, now);
+      }
+
+      const duration = phase === 'inhale' || phase === 'exhale' ? 0.6 : 0.45;
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(Math.min(0.4, volume * 0.45), now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch (_) {}
+  }
+
+  /**
+   * Triggers a preview audio pulse so mobile users can verify speaker output
+   */
+  public async testFocusAudio(mode: 'alpha' | 'rain' | 'noise' = 'alpha') {
+    await this.resumeContext();
+    this.playBeep(528, 0.15, 'sine');
+    if (!this.isAmbientPlaying) {
+      await this.startAmbientFocus(mode, 0.5);
+      setTimeout(() => {
+        if (this.currentAmbientMode === mode && this.isAmbientPlaying) {
+          this.stopAmbientFocus();
+        }
+      }, 2500);
+    }
   }
 
   /** Subtle hover sound for RPG buttons */
@@ -1281,22 +1571,30 @@ class SoundManager {
   public speakMotivation(text: string, pitch = 0.92, rate = 1.05) {
     if (!this.enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
-      utterance.rate = rate;
-      utterance.pitch = pitch;
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
+      setTimeout(() => {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'es-ES';
+          utterance.rate = rate;
+          utterance.pitch = pitch;
 
-      // Prefer a natural Spanish voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const esVoice = voices.find(
-        (v) =>
-          v.lang.startsWith('es') &&
-          (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Castilian') || v.name.includes('Sabina') || v.name.includes('Jorge'))
-      ) || voices.find((v) => v.lang.startsWith('es'));
+          // Prefer a natural Spanish voice if available
+          const voices = window.speechSynthesis.getVoices();
+          const esVoice = voices.find(
+            (v) =>
+              v.lang.startsWith('es') &&
+              (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Castilian') || v.name.includes('Sabina') || v.name.includes('Jorge'))
+          ) || voices.find((v) => v.lang.startsWith('es'));
 
-      if (esVoice) utterance.voice = esVoice;
-      window.speechSynthesis.speak(utterance);
+          if (esVoice) utterance.voice = esVoice;
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          // Ignore
+        }
+      }, 50);
     } catch {
       // Ignore
     }
